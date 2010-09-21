@@ -8,7 +8,7 @@ namespace DSDecmp
 {
     unsafe class Program
     {
-        static int MAX_OUTSIZE = 0x200000;
+        static uint MAX_OUTSIZE = 0xA00000;
         const int N = 4096, F = 18;
         const byte THRESHOLD = 2;
         const int NIL = N;
@@ -16,22 +16,35 @@ namespace DSDecmp
 
         const int LZ77_TAG = 0x10, LZSS_TAG = 0x11, RLE_TAG = 0x30, HUFF_TAG = 0x20, NONE_TAG = 0x00;
 
+        static bool CopyErrors = false;
 
         static void Main(string[] args)
         {
 
-            /*args = new string[2];
-            args[0] = "game_over_NCGR.cdat";
-            args[1] = "dec"; /**/
+            if (args.Length == 0) { Usage(); return; }
+            if (args[0] == "-ce")
+            {
+                CopyErrors = true;
+                string[] newArgs = new string[args.Length-1];
+                Array.Copy(args, 1, newArgs, 0, newArgs.Length);
+                args = newArgs;
+            }
+
+            if (args.Length == 1)
+            {
+                if (Directory.Exists(args[0])) // only directory given? output to same directory
+                    args = new string[] { args[0], args[0] };
+                else if (File.Exists(args[0])) // only file given? output to same dir as file
+                    args = new string[] { args[0], Directory.GetParent(args[0]).FullName };
+            }
 
             if (args.Length != 2 && args.Length != 3)
             {
-                Console.WriteLine("useage: DSDecmp infile outfolder [maxlen]\nor: DSDecmp infolder outfolder [maxlen]");
-                Console.WriteLine("maxlen is optional and hexadecimal, and all files that would be larger than maxlen when decompressed are ignored");
+                Usage();
                 return;
             }
             if (args.Length == 3)
-                MAX_OUTSIZE = int.Parse(args[2], System.Globalization.NumberStyles.HexNumber);/**/
+                MAX_OUTSIZE = uint.Parse(args[2], System.Globalization.NumberStyles.HexNumber);/**/
 
 
             args[0] = makeSlashes(args[0]);
@@ -44,6 +57,13 @@ namespace DSDecmp
                 Decompress(args[0], args[1]);
             else
                 DecompressFolder(args[0], args[1]);/**/
+        }
+
+        private static void Usage()
+        {
+            Console.WriteLine("useage: DSDecmp (-ce) infile [outfolder [maxlen]]\nor: DSDecmp (-ce) infolder [outfolder [maxlen]]");
+            Console.WriteLine("maxlen is optional and hexadecimal, and all files that would be larger than maxlen when decompressed are ignored");
+            Console.WriteLine("adding the -ce flag will copy every file that generates an error while processing to the output dir, and does not wait for user confirmation.");
         }
 
         private static void WriteDebug(string s)
@@ -129,7 +149,10 @@ namespace DSDecmp
                 Console.WriteLine("Could not properly decompress {0:s};", filein);
                 Console.WriteLine(e.Message);
                 Console.WriteLine(e.StackTrace);
-                Console.ReadLine();
+                if (CopyErrors)
+                    CopyFile(filein, outflr);
+                else
+                    Console.ReadLine();
             }
         }
         #endregion
@@ -247,7 +270,8 @@ namespace DSDecmp
             filein = filein.Replace("\\", "/");
             outflr = outflr.Replace("\\", "/");
             string outfname = filein.Substring(filein.LastIndexOf("/") + 1);
-            outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
+            if (outfname.Contains("."))
+                outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
 
             if (!outflr.EndsWith("/"))
                 outflr += "/";
@@ -405,7 +429,8 @@ namespace DSDecmp
             filename = filename.Replace("\\", "/");
             outflr = outflr.Replace("\\", "/");
             string outfname = filename.Substring(filename.LastIndexOf("/") + 1);
-            outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
+            if (outfname.Contains("."))
+                outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
 
             if (!outflr.EndsWith("/"))
                 outflr += "/";
@@ -459,7 +484,8 @@ namespace DSDecmp
             filein = filein.Replace("\\", "/");
             outflr = outflr.Replace("\\", "/");
             string outfname = filein.Substring(filein.LastIndexOf("/") + 1);
-            outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
+            if (outfname.Contains("."))
+                outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
 
             if (!outflr.EndsWith("/"))
                 outflr += "/";
@@ -597,7 +623,8 @@ namespace DSDecmp
             filein = filein.Replace("\\", "/");
             outflr = outflr.Replace("\\", "/");
             string outfname = filein.Substring(filein.LastIndexOf("/") + 1);
-            outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
+            if (outfname.Contains("."))
+                outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
 
             if (!outflr.EndsWith("/"))
                 outflr += "/";
@@ -665,12 +692,12 @@ namespace DSDecmp
             for (i = 0; i < 3; i++)
                 decomp_size += br.ReadByte() << (i * 8);
             if (decomp_size > MAX_OUTSIZE)
-                throw new Exception(String.Format("{0:s} will be larger than 0x{1:x} (0x{2:x}) and will not be decompressed.", filein, MAX_OUTSIZE, decomp_size));
+                throw new Exception(String.Format("{0:s} will be larger than 0x{1:x} (0x{2:x}) and will not be decompressed. (1)", filein, MAX_OUTSIZE, decomp_size));
             else if (decomp_size == 0)
                 for (i = 0; i < 4; i++)
                     decomp_size += br.ReadByte() << (i * 8);
             if (decomp_size > MAX_OUTSIZE << 8)
-                throw new Exception(String.Format("{0:s} will be larger than 0x{1:x} (0x{2:x}) and will not be decompressed.", filein, MAX_OUTSIZE, decomp_size));
+                throw new Exception(String.Format("{0:s} will be larger than 0x{1:x} (0x{2:x}) and will not be decompressed. (2)", filein, MAX_OUTSIZE, decomp_size));
 
             if (showAlways)
                 Console.WriteLine("Decompressing {0:s}. (outsize: 0x{1:x})", filein, decomp_size);
@@ -802,7 +829,8 @@ namespace DSDecmp
             filein = filein.Replace("\\", "/");
             outflr = outflr.Replace("\\", "/");
             string outfname = filein.Substring(filein.LastIndexOf("/") + 1);
-            outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
+            if (outfname.Contains("."))
+                outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
 
             if (!outflr.EndsWith("/"))
                 outflr += "/";

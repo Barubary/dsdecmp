@@ -7,27 +7,56 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Stack;
 
+/** 
+ * Utility class for reading raw data from a file.
+ * Does not extend InputStream, but does implement most of its methods.  
+ */
 public class HexInputStream {
 
+    /** The InputStream this stream is based on. */
 	private volatile InputStream dis;
+	/** The current position of this stream. */
 	private volatile long currPos;
+	/** Get the current position of this stream. */
 	public long getPosition(){ return this.currPos; }
+	/**
+	 * Sets the position of this stream.
+	 * @param newPos The desired position of the stream.
+	 * @throws IOException when the given position cannot be reached
+	 */               	
 	public void setPosition(long newPos) throws IOException{ this.skip(newPos - currPos); }
+	/** Convenience method for {@link #setPosition(long)}. */
 	public void goTo(long pos) throws IOException{ this.setPosition(pos); }
 	
+	/** The stack of saved positions for this stream. */
 	private Stack<Long> positionStack;
 	
+	/**
+	 * Creates a new HexInputStream, based off another InputStream.
+	 * The 0-position of the new stream is the current position of the
+	 * given stream.
+	 * @param baseInputStream The InputStream to base the new HexInputStream on.          	 
+	 */     	
 	public HexInputStream(InputStream baseInputStream) {
 		this.dis = baseInputStream;
 		this.currPos = 0;
 		this.positionStack = new Stack<Long>();
 	}
+	/**
+	 * Creates a new HexInputStream for reading a file.
+	 * @param String The name of the file to read.
+	 * @throws FileNotFoundException If the given file does not exist.     	 
+	 */     	
 	public HexInputStream(String filename) throws FileNotFoundException {
 		this.dis = new DataInputStream(new FileInputStream(new File(filename)));
 		this.currPos = 0;
 		this.positionStack = new Stack<Long>();
 	}
 	
+	/** 
+	 * Returns an estimate of the number of bytes left to read until the EOF.
+	 * See {@link InputStream#available}
+	 */
 	public int available() throws IOException{
 		return dis.available();
 	}
@@ -118,14 +147,14 @@ public class HexInputStream {
 		return dword;
 	}
 	
-	/** Read a BigEndian s32 from this stream (a signed int) */
+	/** Read a BigEndian s64 from this stream (a signed int) */
 	public long readS64() throws IOException {
 		long qword = 0;
 		for(int i = 0; i < 8; i++)
 			qword = qword | (readU8() << (8 * i));
 		return qword;
 	}
-	/** Read a LittleEndian s32 from this stream (a signed int) */
+	/** Read a LittleEndian s64 from this stream (a signed int) */
 	public long readlS64() throws IOException {
 		long qword = 0;
 		for(int i = 0; i < 8; i++)
@@ -133,6 +162,7 @@ public class HexInputStream {
 		return qword;
 	}
 	
+	// an u64 fits into a BigInt, but I prefer not to return those for read-methods.
 
 	
 	/** Peek at the next u8 from this stream */
@@ -236,7 +266,7 @@ public class HexInputStream {
 	
 	/**
 	 * Reads a \0-terminated string from this stream
-	 * @param totlength the total length of the filed in the data. If -1, read until a \0 is read.
+	 * @param totlength the total length of the string in the data. If -1, read until a \0 is read.
 	 */
 	public String read0TerminatedString(int totlength) throws IOException{
 		if(totlength == -1){
@@ -266,11 +296,10 @@ public class HexInputStream {
 	
 	/** Skip n bytes */
 	public void skip(long n) throws IOException{
-		dis.skip(n);
-		currPos += n;
+		currPos += dis.skip(n);
 	}
 
-	/** Reset this stream */
+	/** Reset this stream to its base position. */
 	public void reset() throws IOException{
 		this.goTo(0);
 	}

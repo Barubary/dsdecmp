@@ -1,3 +1,23 @@
+//Copyright (c) 2010 Nick Kraayenbrink
+//
+//Permission is hereby granted, free of charge, to any person obtaining a copy
+//of this software and associated documentation files (the "Software"), to deal
+//in the Software without restriction, including without limitation the rights
+//to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+//copies of the Software, and to permit persons to whom the Software is
+//furnished to do so, subject to the following conditions:
+//
+//The above copyright notice and this permission notice shall be included in
+//all copies or substantial portions of the Software.
+//
+//THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+//IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+//FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+//AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+//LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+//OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//THE SOFTWARE.
+
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,14 +29,22 @@ namespace DSDecmp
     unsafe class Program
     {
         static uint MAX_OUTSIZE = 0xA00000;
-        const int N = 4096, F = 18;
-        const byte THRESHOLD = 2;
-        const int NIL = N;
         static bool showAlways = true;
 
-        const int LZ77_TAG = 0x10, LZSS_TAG = 0x11, RLE_TAG = 0x30, HUFF_TAG = 0x20, NONE_TAG = 0x00;
+        const int LZ10_TAG = 0x10,
+                  LZ11_TAG = 0x11,
+                  HUFF_TAG = 0x20, // actually 0x28 and 0x24
+                  RLE_TAG = 0x30,
+                  LZ40_TAG = 0x40,
+                  NONE_TAG = 0x00;
 
         static bool CopyErrors = false;
+        static bool AllowHuff = true;
+        static bool AllowRLE = true;
+        static bool AllowNone = true;
+        static bool AllowLZ10 = true;
+        static bool AllowLZ11 = true;
+        static bool AllowLZ40 = true;
 
         static void Main(string[] args)
         {
@@ -25,7 +53,21 @@ namespace DSDecmp
             if (args[0] == "-ce")
             {
                 CopyErrors = true;
-                string[] newArgs = new string[args.Length-1];
+                string[] newArgs = new string[args.Length - 1];
+                Array.Copy(args, 1, newArgs, 0, newArgs.Length);
+                args = newArgs;
+            }
+            if (args.Length == 0) { Usage(); return; }
+            if (args[0].StartsWith("-n"))
+            {
+                string rest = args[0].Substring(2);
+                AllowHuff = !rest.Contains("h");
+                AllowLZ10 = !rest.Contains("0");
+                AllowLZ11 = !rest.Contains("1");
+                AllowLZ40 = !rest.Contains("4");
+                AllowNone = !rest.Contains("n");
+                AllowRLE = !rest.Contains("r");
+                string[] newArgs = new string[args.Length - 1];
                 Array.Copy(args, 1, newArgs, 0, newArgs.Length);
                 args = newArgs;
             }
@@ -61,9 +103,16 @@ namespace DSDecmp
 
         private static void Usage()
         {
-            Console.WriteLine("useage: DSDecmp (-ce) infile [outfolder [maxlen]]\nor: DSDecmp (-ce) infolder [outfolder [maxlen]]");
+            Console.WriteLine("useage: DSDecmp (-ce) (-n[h014nr]) infile [outfolder [maxlen]]\nor: DSDecmp (-ce) infolder [outfolder [maxlen]]");
             Console.WriteLine("maxlen is optional and hexadecimal, and all files that would be larger than maxlen when decompressed are ignored");
-            Console.WriteLine("adding the -ce flag will copy every file that generates an error while processing to the output dir, and does not wait for user confirmation.");
+            Console.WriteLine("Adding the -ce flag will copy every file that generates an error while processing to the output dir, and does not wait for user confirmation.");
+            Console.WriteLine("Adding the -n flag with any number of the characters h,0,1,n, or r will disable compression formats of the corresponding letter;");
+            Console.WriteLine("h - Huffman");
+            Console.WriteLine("0 - LZ 0x10");
+            Console.WriteLine("1 - LZ 0x11");
+            Console.WriteLine("4 - LZ 0x40");
+            Console.WriteLine("n - None-compression (ie: 0x00 first byte, next 3 bytes file size - 4)");
+            Console.WriteLine("r - Run-Length Encoding");
         }
 
         private static void WriteDebug(string s)
@@ -126,17 +175,39 @@ namespace DSDecmp
             {
                 switch (tag >> 4)
                 {
-                    case LZ77_TAG >> 4:
-                        if (tag == LZ77_TAG)
+                    case LZ10_TAG >> 4:
+                        if (tag == LZ10_TAG && AllowLZ10)
                             DecompressLZ77(filein, outflr);
-                        else if (tag == LZSS_TAG)
+                        else if (tag == LZ11_TAG && AllowLZ11)
                             Decompress11LZS(filein, outflr);
                         else
                             CopyFile(filein, outflr);
                         break;
-                    case RLE_TAG >> 4: DecompressRLE(filein, outflr); break;
-                    case NONE_TAG >> 4: DecompressNone(filein, outflr); break;
-                    case HUFF_TAG >> 4: DecompressHuffman(filein, outflr); break;
+                    case LZ40_TAG >> 4:
+                        if (AllowLZ40 && tag == LZ40_TAG) // LZ40 tag must match completely
+                            DecompressLZ40(filein, outflr);
+                        else
+                            CopyFile(filein, outflr);
+                        break;
+                    case RLE_TAG >> 4:
+                        if (AllowRLE && tag == RLE_TAG) // RLE tag must match completely
+                            DecompressRLE(filein, outflr);
+                        else
+                            CopyFile(filein, outflr);
+                        break;
+                    case NONE_TAG >> 4:
+                        if (AllowNone && tag == NONE_TAG)// NONE tag must match completely
+                            DecompressNone(filein, outflr);
+                        else
+                            CopyFile(filein, outflr);
+                        break;
+                    case HUFF_TAG >> 4:
+                        if (AllowHuff) // huff tag only needs t match the first 4 bits
+                            // throws InvalidDataException if first 4 bits matched by accident
+                            DecompressHuffman(filein, outflr);
+                        else
+                            CopyFile(filein, outflr);
+                        break;
                     default: CopyFile(filein, outflr); break;
                 }
             }
@@ -524,7 +595,7 @@ namespace DSDecmp
              */
             FileStream fstr = new FileStream(filein, FileMode.Open);
             if (fstr.Length > int.MaxValue)
-                throw new Exception("Filer larger than 2GB cannot be RLE-compressed files.");
+                throw new Exception("Filer larger than 2GB cannot be LZ-0x10-compressed files.");
             BinaryReader br = new BinaryReader(fstr);
 
             long decomp_size = 0, curr_size = 0;
@@ -533,8 +604,8 @@ namespace DSDecmp
             byte b;
             long cdest;
 
-            if (br.ReadByte() != LZ77_TAG)
-                throw new InvalidDataException(String.Format("File {0:s} is not a valid LZ77 file", filein));
+            if (br.ReadByte() != LZ10_TAG)
+                throw new InvalidDataException(String.Format("File {0:s} is not a valid LZ-0x10 file", filein));
             for (i = 0; i < 3; i++)
                 decomp_size += br.ReadByte() << (i * 8);
             if (decomp_size > MAX_OUTSIZE)
@@ -638,7 +709,7 @@ namespace DSDecmp
 
             #endregion
 
-            Console.WriteLine("LZ77 Decompressed " + filein);
+            Console.WriteLine("LZ-0x10 Decompressed " + filein);
 
         }
         #endregion
@@ -676,7 +747,7 @@ namespace DSDecmp
              */
             FileStream fstr = new FileStream(filein, FileMode.Open);
             if (fstr.Length > int.MaxValue)
-                throw new Exception("Filer larger than 2GB cannot be LZSS-compressed files.");
+                throw new Exception("Filer larger than 2GB cannot be LZ-0x11-compressed files.");
             BinaryReader br = new BinaryReader(fstr);
 
             int decomp_size = 0, curr_size = 0;
@@ -687,8 +758,8 @@ namespace DSDecmp
 
             int threshold = 1;
 
-            if (br.ReadByte() != LZSS_TAG)
-                throw new InvalidDataException(String.Format("File {0:s} is not a valid LZSS-11 file", filein));
+            if (br.ReadByte() != LZ11_TAG)
+                throw new InvalidDataException(String.Format("File {0:s} is not a valid LZ-0x11 file", filein));
             for (i = 0; i < 3; i++)
                 decomp_size += br.ReadByte() << (i * 8);
             if (decomp_size > MAX_OUTSIZE)
@@ -845,8 +916,180 @@ namespace DSDecmp
 
             #endregion
 
-            Console.WriteLine("LZSS-11 Decompressed " + filein);
+            Console.WriteLine("LZ-0x11 Decompressed " + filein);
 
+        }
+        #endregion
+
+        #region tag 0x40 LZ
+        static void DecompressLZ40(string filein, string outflr)
+        {
+            // no NDSTEK-like specification for this one; I seem to not be able to get those right.
+            /*
+             * byte tag; // 0x40
+             * byte[3] decompressedSize;
+             * the rest is the data;
+             * 
+             * for each chunk:
+             *      - first byte determines which blocks are compressed
+             *          - block i is compressed iff:
+             *              - the i'th MSB is the last 1-bit in the byte
+             *              - OR the i'th MSB is a 0-bit, not directly followed by other 0-bits.
+             *          - note that there will never be more than one 0-bit before any 1-bit in this byte
+             *          (look at the corresponding code, it may clarify this a bit more)
+             *      - then come 8 blocks:
+             *          - a non-compressed block is simply one single byte
+             *          - a compressed block can have 3 sizes:
+             *              - A0 CD EF
+             *                  -> Length = EF + 0x10, Disp = CDA
+             *              - A1 CD EF GH
+             *                  -> Length = GHEF + 0x110, Disp = CDA
+             *              - AB CD  (B > 1)
+             *                  -> Length = B, Disp = CDA
+             *              Copy <Length> bytes from Dest-<Disp> to Dest (with <Dest> similar to the NDSTEK specs)
+             */
+
+
+            FileStream fstr = new FileStream(filein, FileMode.Open);
+            if (fstr.Length > int.MaxValue)
+                throw new Exception("Filer larger than 2GB cannot be LZSS-compressed files.");
+            BinaryReader br = new BinaryReader(fstr);
+
+            int decomp_size = 0, curr_size = 0;
+
+            if (br.ReadByte() != LZ40_TAG)
+                throw new InvalidDataException(String.Format("File {0:s} is not a valid LZSS-11 file", filein));
+            for (int i = 0; i < 3; i++)
+                decomp_size += br.ReadByte() << (i * 8);
+            if (decomp_size > MAX_OUTSIZE)
+                throw new Exception(String.Format("{0:s} will be larger than 0x{1:x} (0x{2:x}) and will not be decompressed. (1)", filein, MAX_OUTSIZE, decomp_size));
+            else if (decomp_size == 0)
+                for (int i = 0; i < 4; i++)
+                    decomp_size += br.ReadByte() << (i * 8);
+            if (decomp_size > MAX_OUTSIZE << 8)
+                throw new Exception(String.Format("{0:s} will be larger than 0x{1:x} (0x{2:x}) and will not be decompressed. (2)", filein, MAX_OUTSIZE, decomp_size));
+
+            if (showAlways)
+                Console.WriteLine("Decompressing {0:s}. (outsize: 0x{1:x})", filein, decomp_size);
+
+
+            byte[] outdata = new byte[decomp_size];
+
+            while (curr_size < decomp_size)
+            {
+                int flag;
+                try { flag = br.ReadByte(); }
+                catch (EndOfStreamException)
+                {
+                    Console.WriteLine("Not enough data");
+                    break;
+                }
+                int flagB = flag;
+                bool[] compFlags = new bool[8];
+                bool[] fbits = new bool[11];
+                fbits[0] = true;
+                fbits[9] = false;
+                fbits[10] = false;
+
+                // determine which blocks are compressed
+                int b = 0;
+                while (flag > 0)
+                {
+                    bool bit = (flag & 0x80) > 0;
+                    flag = (flag & 0x7F) << 1;
+                    compFlags[b++] = (flag == 0) || !bit;
+                }
+
+                /*
+                Console.WriteLine("Flag: 0x{0:X2}", flagB);
+                Console.Write("-> (  ");
+                for (int i = 0; i < 8; i++)
+                    Console.Write(compFlags[i] ? "1," : "0,");
+                Console.WriteLine(")");/**/
+
+                for (int i = 0; i < 8 && curr_size < decomp_size; i++)
+                {
+                    if (compFlags[i])
+                    {
+                        ushort compressed = br.ReadUInt16();
+                        // ABCD (or CD AB if read byte-by-byte)
+                        // -> D is length
+                        // -> ABC is disp
+                        int len = compressed & 0x000F;
+                        int disp = compressed >> 4;
+
+                        // if D == 0, actual format is:
+                        // CD AB EF
+                        // -> DEF is length - 0x10
+                        // -> ABC is disp
+
+                        // if D == 1, actual format is:
+                        // CD AB EF GH
+                        // -> GHEF is length
+                        // -> ABC is disp
+                        if (len == 0)
+                            len = br.ReadByte() + 0x10;
+                        else if (len == 1)
+                            len = br.ReadUInt16() + 0x110;
+
+                        if (disp > curr_size)
+                            throw new Exception("Cannot go back more than already written "
+                                + "(compressed block=0x" + compressed.ToString("X4") + ")\n"
+                                + "INPOS = 0x" + (br.BaseStream.Position - 2).ToString("X4"));
+
+                        for (int j = 0; j < len; j++)
+                        {
+                            outdata[curr_size + j] = outdata[curr_size - disp + j];
+                        }
+                        curr_size += len;
+                    }
+                    else
+                    {
+                        outdata[curr_size++] = br.ReadByte();
+                    }
+                }
+            }
+
+            try
+            {
+                byte b;
+                while ((b = br.ReadByte()) == 0
+                    || b == 0x80) { }
+                // if we read a non-zero up to the end of the file, print that there is still some data
+                // (0x40 compression seems to add 80 00 00 sometimes, so also ignore 0x80-bytes)
+                Console.WriteLine("Too much data in file; current INPOS = {0:x}", br.BaseStream.Position - 1);
+            }
+            catch (EndOfStreamException) { }
+
+            #region save
+            string ext = "";
+            for (int i = 0; i < 4; i++)
+                if (char.IsLetterOrDigit((char)outdata[i]))
+                    ext += (char)outdata[i];
+                else
+                    break;
+            if (ext.Length == 0)
+                ext = "dat";
+            ext = "." + ext;
+            filein = filein.Replace("\\", "/");
+            outflr = outflr.Replace("\\", "/");
+            string outfname = filein.Substring(filein.LastIndexOf("/") + 1);
+            if (outfname.Contains("."))
+                outfname = outfname.Substring(0, outfname.LastIndexOf('.'));
+
+            if (!outflr.EndsWith("/"))
+                outflr += "/";
+            while (File.Exists(outflr + outfname + ext))
+                outfname += "_";/**/
+
+            BinaryWriter bw = new BinaryWriter(new FileStream(outflr + outfname + ext, FileMode.Create));
+            bw.Write(outdata);
+
+            bw.Flush();
+            bw.Close();
+            #endregion
+
+            Console.WriteLine("LZ-0x40-decompressed " + filein);
         }
         #endregion
 

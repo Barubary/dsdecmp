@@ -1144,7 +1144,7 @@ namespace DSDecmp
             // however the order if reading is reversed: the compression starts at the end of the file.
             // Assuming we start reading at the end towards the beginning, the format is:
             /*
-             * u32 extraSize; // decompressed data size = file length - header size + this value
+             * u32 extraSize; // decompressed data size = file length (including header) + this value
              * u8 headerSize;
              * u24 compressedLength; // can be less than file size (w/o header). If so, the rest of the file is uncompressed.
              * u8[headerSize-8] padding; // 0xFF-s
@@ -1152,12 +1152,13 @@ namespace DSDecmp
              * 0x10-like-compressed data follows (without the usual 4-byte header).
              * The only difference is that 2 should be added to the DISP value in compressed blocks
              * to get the proper value.
-             * The u32 and u24 are read most significant byte first.
-             * If extraSize is 0, there is no headerSize, decompressedLength or padding;
+             * the u32 and u24 are read most significant byte first.
+             * if extraSize is 0, there is no headerSize, decompressedLength or padding.
              * the data starts immediately, and is uncompressed.
              * 
              * arm9.bin has 3 extra u32 values at the 'start' (ie: end of the file),
-             * which may be ignored (and are ignored here).
+             * which may be ignored. (and are ignored here) These 12 bytes also should not
+             * be included in the computation of the output size.
              */
 
             // save the input file in a buffer, since we need to read backwards.
@@ -1166,9 +1167,12 @@ namespace DSDecmp
             using (BinaryReader reader = new BinaryReader(File.OpenRead(filein)))
             {
                 if (filein.EndsWith("arm9.bin"))
+                {
                     // arm9.bin has 0xC extra bytes we don't need. Without those the format
                     // is the same as with overlay files.
                     inbuffer = new byte[reader.BaseStream.Length - 0xC];
+                    reader.BaseStream.Position += 0xC;
+                }
                 else
                     inbuffer = new byte[reader.BaseStream.Length];
                 reader.Read(inbuffer, 0, inbuffer.Length);
@@ -1184,9 +1188,10 @@ namespace DSDecmp
                                 | (reader.ReadByte() << 16)
                                 | (reader.ReadByte() << 8)
                                 | (reader.ReadByte());
-                outbuffer = new byte[inbuffer.Length + extraSize];
+
                 if (extraSize == 0)
                 {
+                    outbuffer = new byte[inbuffer.Length - 4];
                     // if the extra size if 0, there is no overlay compression.
                     reader.Read(outbuffer, 0, outbuffer.Length);
                 }
@@ -1197,16 +1202,18 @@ namespace DSDecmp
                                         | (reader.ReadByte() << 8)
                                         | reader.ReadByte();
                     // skip the padding
-                    reader.BaseStream.Position += headerLength - 8;
+                    reader.BaseStream.Position = headerLength;
+
+                    outbuffer = new byte[inbuffer.Length + extraSize];
 
                     // decompress the compressed part
                     #region LZ-0x10-like decompression
-
-                    int decomp_size = compressedSize + extraSize;
                     int curr_size = 0;
+                    int decomp_size = compressedSize + extraSize;
+                    int inpos = 0;
                     byte b;
                     int n, disp, j, cdest;
-                    while (curr_size < decomp_size)
+                    while (inpos < compressedSize && curr_size < decomp_size)
                     {
                         byte flags = reader.ReadByte();
                         for (int i = 0; i < 8; i++)
@@ -1224,19 +1231,38 @@ namespace DSDecmp
                                 n += 3;
                                 cdest = curr_size;
 
+                                inpos += 2;
+
+                                disp += 2;
+
                                 if (disp > curr_size)
-                                    throw new Exception("Cannot go back more than already written");
+                                {
+                                    //throw new Exception("Cannot go back more than already written");
+                                    Console.WriteLine("DISP is too large (0x{0:X}, curr_size=0x{1:X}, length=0x{2:X}); using 1 instead.", disp, curr_size, n);
+                                    //disp %= curr_size;
+                                    // HACK. this seems to produce valid files, but isn't the most elegant solution.
+                                    // although this _could_ be the actual way to use a disp of 1 in this format,
+                                    // as otherwise the minimum would be 2 (and 0 is undefined).
+                                    disp = 1;
+                                }
                                 for (j = 0; j < n; j++)
-                                    outbuffer[curr_size++] = outbuffer[cdest - disp - 3 + j];
+                                    outbuffer[curr_size++] = outbuffer[cdest - disp - 1 + j];
+
+                                if (curr_size > decomp_size || inpos >= compressedSize)
+                                {
+                                    break;
+                                }
                             }
                             else
                             {
                                 try { b = reader.ReadByte(); }
-                                catch (EndOfStreamException) { break; }// throw new Exception("Incomplete data"); }
+                                catch (EndOfStreamException) { break; }
                                 try { outbuffer[curr_size++] = b; }
                                 catch (IndexOutOfRangeException) { if (b == 0) break; }
-                                //curr_size++;
-                                if (curr_size > decomp_size)
+
+                                inpos += 1;
+
+                                if (curr_size > decomp_size || inpos >= compressedSize)
                                 {
                                     break;
                                 }
@@ -1248,10 +1274,11 @@ namespace DSDecmp
 
                     // if there is any uncompressed part, copy that to the buffer as well
                     int decompressedLength = (int)(reader.BaseStream.Length - reader.BaseStream.Position);
+                    //Console.WriteLine("outlen-curr_size:0x{0:X}", outbuffer.Length - curr_size);
+                    //Console.WriteLine("reader.len-reader.pos:0x{0:X}", decompressedLength);
                     if (decompressedLength > 0)
                     {
-                        //byte[] other = reader.ReadBytes(decompressedLength);
-                        reader.Read(outbuffer, curr_size, decompressedLength);
+                        reader.Read(outbuffer, outbuffer.Length - decompressedLength, decompressedLength);
                     }
                 }
             }

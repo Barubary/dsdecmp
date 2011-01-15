@@ -45,6 +45,8 @@ namespace DSDecmp
         static bool AllowLZ10 = true;
         static bool AllowLZ11 = true;
         static bool AllowLZ40 = true;
+        static bool AllowOVL = true;
+        static bool ForceOVL = false;
 
         static void Main(string[] args)
         {
@@ -67,6 +69,14 @@ namespace DSDecmp
                 AllowLZ40 = !rest.Contains("4");
                 AllowNone = !rest.Contains("n");
                 AllowRLE = !rest.Contains("r");
+                AllowOVL = !rest.Contains("o");
+                string[] newArgs = new string[args.Length - 1];
+                Array.Copy(args, 1, newArgs, 0, newArgs.Length);
+                args = newArgs;
+            }
+            else if (args[0] == "-ovl")
+            {
+                ForceOVL = true;
                 string[] newArgs = new string[args.Length - 1];
                 Array.Copy(args, 1, newArgs, 0, newArgs.Length);
                 args = newArgs;
@@ -103,7 +113,8 @@ namespace DSDecmp
 
         private static void Usage()
         {
-            Console.WriteLine("useage: DSDecmp (-ce) (-n[h014nr]) infile [outfolder [maxlen]]\nor: DSDecmp (-ce) infolder [outfolder [maxlen]]");
+            Console.WriteLine("useage: DSDecmp (-ce) (-n[h014nro] | -ovl) infile [outfolder [maxlen]]");
+            Console.WriteLine("or: DSDecmp (-ce) (-n[h014nro] | -ovl) infolder [outfolder [maxlen]]");
             Console.WriteLine("maxlen is optional and hexadecimal, and all files that would be larger than maxlen when decompressed are ignored");
             Console.WriteLine("Adding the -ce flag will copy every file that generates an error while processing to the output dir, and does not wait for user confirmation.");
             Console.WriteLine("Adding the -n flag with any number of the characters h,0,1,n, or r will disable compression formats of the corresponding letter;");
@@ -113,6 +124,12 @@ namespace DSDecmp
             Console.WriteLine("4 - LZ 0x40");
             Console.WriteLine("n - None-compression (ie: 0x00 first byte, next 3 bytes file size - 4)");
             Console.WriteLine("r - Run-Length Encoding");
+            Console.WriteLine("o - LZ Overlay compression");
+            Console.WriteLine();
+            Console.WriteLine("Providing the -ovl flag (the -n and -ovl flags cannot appear together) will "
+                              + "try to decompress the given file(s) with the DS's overlay compression. Normally, "
+                              + "this format is only recognized if the file name is 'arm9.bin' or "
+                              + "'overlay_X.bin' (with X any number).");
         }
 
         private static void WriteDebug(string s)
@@ -164,6 +181,33 @@ namespace DSDecmp
         #region Method: Decompress
         static void Decompress(string filein, string outflr)
         {
+            // check if we need to decompress the file using Overlay compression first
+            string filename = Path.GetFileName(filein);
+            if (AllowOVL)
+            {
+                if (filename == "arm9.bin"
+                    || Regex.Match(filename, "overlay_[0-9]+\\.bin").Success
+                    || ForceOVL)
+                {
+                    try
+                    {
+                        DecompressLZOverlay(filein, outflr);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Could not properly decompress {0:s};", filein);
+                        Console.WriteLine(ex.Message);
+                        Console.WriteLine(ex.StackTrace);
+                        if (CopyErrors)
+                            CopyFile(filein, outflr);
+                        else
+                            Console.ReadLine();
+                    }
+                    return;
+                }
+            }
+
+
             FileStream fstr = File.OpenRead(filein);
             if (fstr.Length > int.MaxValue)
                 throw new Exception("Files larger than 2GB cannot be decompressed by this program.");
@@ -1025,7 +1069,7 @@ namespace DSDecmp
 
                         // if D == 1, actual format is:
                         // CD AB EF GH
-                        // -> GHEF is length
+                        // -> GHEF is length - 0x110
                         // -> ABC is disp
                         if (len == 0)
                             len = br.ReadByte() + 0x10;
@@ -1090,6 +1134,140 @@ namespace DSDecmp
             #endregion
 
             Console.WriteLine("LZ-0x40-decompressed " + filein);
+        }
+        #endregion
+
+        #region LZ Overlay
+        private static void DecompressLZOverlay(string filein, string outflr)
+        {
+            // Overlay LZ compression is basically just LZ-0x10 compression.
+            // however the order if reading is reversed: the compression starts at the end of the file.
+            // Assuming we start reading at the end towards the beginning, the format is:
+            /*
+             * u32 extraSize; // decompressed data size = file length - header size + this value
+             * u8 headerSize;
+             * u24 compressedLength; // can be less than file size (w/o header). If so, the rest of the file is uncompressed.
+             * u8[headerSize-8] padding; // 0xFF-s
+             * 
+             * 0x10-like-compressed data follows (without the usual 4-byte header).
+             * The only difference is that 2 should be added to the DISP value in compressed blocks
+             * to get the proper value.
+             * The u32 and u24 are read most significant byte first.
+             * If extraSize is 0, there is no headerSize, decompressedLength or padding;
+             * the data starts immediately, and is uncompressed.
+             * 
+             * arm9.bin has 3 extra u32 values at the 'start' (ie: end of the file),
+             * which may be ignored (and are ignored here).
+             */
+
+            // save the input file in a buffer, since we need to read backwards.
+            // reverse the array once we're done reading
+            byte[] inbuffer = new byte[0];
+            using (BinaryReader reader = new BinaryReader(File.OpenRead(filein)))
+            {
+                if (filein.EndsWith("arm9.bin"))
+                    // arm9.bin has 0xC extra bytes we don't need. Without those the format
+                    // is the same as with overlay files.
+                    inbuffer = new byte[reader.BaseStream.Length - 0xC];
+                else
+                    inbuffer = new byte[reader.BaseStream.Length];
+                reader.Read(inbuffer, 0, inbuffer.Length);
+            }
+            Array.Reverse(inbuffer);
+
+            // decompress the input. this results in an output buffer that is reversed,
+            // so reverse that after decompression as well.
+            byte[] outbuffer = new byte[0];
+            using (BinaryReader reader = new BinaryReader(new MemoryStream(inbuffer)))
+            {
+                int extraSize = (reader.ReadByte() << 24)
+                                | (reader.ReadByte() << 16)
+                                | (reader.ReadByte() << 8)
+                                | (reader.ReadByte());
+                outbuffer = new byte[inbuffer.Length + extraSize];
+                if (extraSize == 0)
+                {
+                    // if the extra size if 0, there is no overlay compression.
+                    reader.Read(outbuffer, 0, outbuffer.Length);
+                }
+                else
+                {
+                    byte headerLength = reader.ReadByte();
+                    int compressedSize = (reader.ReadByte() << 16)
+                                        | (reader.ReadByte() << 8)
+                                        | reader.ReadByte();
+                    // skip the padding
+                    reader.BaseStream.Position += headerLength - 8;
+
+                    // decompress the compressed part
+                    #region LZ-0x10-like decompression
+
+                    int decomp_size = compressedSize + extraSize;
+                    int curr_size = 0;
+                    byte b;
+                    int n, disp, j, cdest;
+                    while (curr_size < decomp_size)
+                    {
+                        byte flags = reader.ReadByte();
+                        for (int i = 0; i < 8; i++)
+                        {
+                            bool flag = (flags & (0x80 >> i)) > 0;
+                            if (flag)
+                            {
+                                disp = 0;
+                                try { b = reader.ReadByte(); }
+                                catch (EndOfStreamException) { throw new Exception("Incomplete data"); }
+                                n = b >> 4;
+                                disp = (b & 0x0F) << 8;
+                                try { disp |= reader.ReadByte(); }
+                                catch (EndOfStreamException) { throw new Exception("Incomplete data"); }
+                                n += 3;
+                                cdest = curr_size;
+
+                                if (disp > curr_size)
+                                    throw new Exception("Cannot go back more than already written");
+                                for (j = 0; j < n; j++)
+                                    outbuffer[curr_size++] = outbuffer[cdest - disp - 3 + j];
+                            }
+                            else
+                            {
+                                try { b = reader.ReadByte(); }
+                                catch (EndOfStreamException) { break; }// throw new Exception("Incomplete data"); }
+                                try { outbuffer[curr_size++] = b; }
+                                catch (IndexOutOfRangeException) { if (b == 0) break; }
+                                //curr_size++;
+                                if (curr_size > decomp_size)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    #endregion
+
+                    // if there is any uncompressed part, copy that to the buffer as well
+                    int decompressedLength = (int)(reader.BaseStream.Length - reader.BaseStream.Position);
+                    if (decompressedLength > 0)
+                    {
+                        //byte[] other = reader.ReadBytes(decompressedLength);
+                        reader.Read(outbuffer, curr_size, decompressedLength);
+                    }
+                }
+            }
+            Array.Reverse(outbuffer);
+
+            // write the output to a file. Replace the .bin extension with .ovl.
+            string infname = Path.GetFileName(filein);
+            string outfname = infname.Substring(0, infname.Length - 3) + "ovl";
+            string outfile = Path.Combine(outflr, outfname);
+
+            using (BinaryWriter writer = new BinaryWriter(File.Create(outfile)))
+            {
+                writer.Write(outbuffer);
+            }
+
+            Console.WriteLine("LZ-Overlay compressed " + filein);
         }
         #endregion
 

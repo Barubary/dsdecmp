@@ -1233,7 +1233,7 @@ namespace DSDecmp
 
                                 inpos += 2;
 
-                                disp += 2;
+                                disp += 3;
 
                                 if (disp > curr_size)
                                 {
@@ -1242,11 +1242,11 @@ namespace DSDecmp
                                     //disp %= curr_size;
                                     // HACK. this seems to produce valid files, but isn't the most elegant solution.
                                     // although this _could_ be the actual way to use a disp of 1 in this format,
-                                    // as otherwise the minimum would be 2 (and 0 is undefined).
+                                    // as otherwise the minimum would be 3 (and 0 is undefined).
                                     disp = 1;
                                 }
                                 for (j = 0; j < n; j++)
-                                    outbuffer[curr_size++] = outbuffer[cdest - disp - 1 + j];
+                                    outbuffer[curr_size++] = outbuffer[cdest - disp + j];
 
                                 if (curr_size > decomp_size || inpos >= compressedSize)
                                 {

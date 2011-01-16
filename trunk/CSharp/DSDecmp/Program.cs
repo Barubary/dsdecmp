@@ -1168,10 +1168,9 @@ namespace DSDecmp
             {
                 if (filein.EndsWith("arm9.bin"))
                 {
-                    // arm9.bin has 0xC extra bytes we don't need. Without those the format
-                    // is the same as with overlay files.
+                    // arm9.bin has 0xC extra bytes we don't need at the end.
+                    // Without those the format is the same as with overlay files.
                     inbuffer = new byte[reader.BaseStream.Length - 0xC];
-                    reader.BaseStream.Position += 0xC;
                 }
                 else
                     inbuffer = new byte[reader.BaseStream.Length];

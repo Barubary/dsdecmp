@@ -1241,9 +1241,9 @@ namespace DSDecmp
                                     Console.WriteLine("DISP is too large (0x{0:X}, curr_size=0x{1:X}, length=0x{2:X}); using 1 instead.", disp, curr_size, n);
                                     //disp %= curr_size;
                                     // HACK. this seems to produce valid files, but isn't the most elegant solution.
-                                    // although this _could_ be the actual way to use a disp of 1 in this format,
-                                    // as otherwise the minimum would be 3 (and 0 is undefined).
-                                    disp = 1;
+                                    // although this _could_ be the actual way to use a disp of 2 in this format,
+                                    // as otherwise the minimum would be 3 (and 0 is undefined, and 1 is less useful).
+                                    disp = 2;
                                 }
                                 for (j = 0; j < n; j++)
                                     outbuffer[curr_size++] = outbuffer[cdest - disp + j];

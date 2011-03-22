@@ -781,13 +781,19 @@ namespace DSDecmp
                             Bit 0-3    Disp MSBs
                             Bit 4-7    LEN - 1 (same bits as Indicator)
                             Bit 8-15   Disp LSBs
-                        If Indicator is 1:
-                            Bit 0-3 and 8-19   LEN - 0x111
-                            Bit 20-31          Disp
+                        If Indicator is 1: A(B CD E)(F GH)
+                            Bit 0-3     (LEN - 0x111) MSBs
+                            Bit 4-7     Indicator; unused
+                            Bit 8-15    (LEN- 0x111) 'middle'-SBs
+                            Bit 16-19   Disp MSBs
+                            Bit 20-23   (LEN - 0x111) LSBs
+                            Bit 24-31   Disp LSBs
                         If Indicator is 0:
-                            Bit 0-3 and 8-11   LEN - 0x11
-                            Bit 12-23          Disp
-                      
+                            Bit 0-3     (LEN - 0x11) MSBs
+                            Bit 4-7     Indicator; unused
+                            Bit 8-11    Disp MSBs
+                            Bit 12-15   (LEN - 0x11) LSBs
+                            Bit 16-23   Disp LSBs
              */
             FileStream fstr = new FileStream(filein, FileMode.Open);
             if (fstr.Length > int.MaxValue)

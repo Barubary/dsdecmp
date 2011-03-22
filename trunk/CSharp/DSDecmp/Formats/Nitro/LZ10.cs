@@ -16,6 +16,7 @@ namespace DSDecmp.Formats.Nitro
         public override void Decompress(Stream instream, long inLength,
                                             Stream outstream)
         {
+            #region format definition form GBATEK/NDSTEK
             /*  Data header (32bit)
                   Bit 0-3   Reserved
                   Bit 4-7   Compressed type (must be 1 for LZ77)
@@ -30,6 +31,7 @@ namespace DSDecmp.Formats.Nitro
                   Bit 4-7   Number of bytes to copy (minus 3)
                   Bit 8-15  Disp LSBs
              */
+            #endregion
 
             long readBytes = 0;
 
@@ -49,7 +51,7 @@ namespace DSDecmp.Formats.Nitro
                 readBytes += 4;
             }
 
-            // the maximum 'DISP' is 0xFFF.
+            // the maximum 'DISP-1' is 0xFFF.
             int bufferLength = 0x1000;
             byte[] buffer = new byte[bufferLength];
             int bufferOffset = 0;
@@ -61,7 +63,7 @@ namespace DSDecmp.Formats.Nitro
             {
                 // (throws when requested new flags byte is not available)
                 #region Update the mask. If all flag bits have been read, get a new set.
-                // the current mask is the mask used in the previous run. So of it masks the
+                // the current mask is the mask used in the previous run. So if it masks the
                 // last flag bit, get a new flags byte.
                 if (mask == 1)
                 {
@@ -88,7 +90,9 @@ namespace DSDecmp.Formats.Nitro
                     {
                         // make sure the stream is at the end
                         if (readBytes < inLength)
-                            instream.ReadByte();
+                        {
+                            instream.ReadByte(); readBytes++;
+                        }
                         throw new NotEnoughDataException(currentOutSize, decompressedSize);
                     }
                     int byte1 = instream.ReadByte(); readBytes++;

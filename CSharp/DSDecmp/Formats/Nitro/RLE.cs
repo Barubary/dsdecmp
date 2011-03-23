@@ -5,6 +5,10 @@ using System.IO;
 
 namespace DSDecmp.Formats.Nitro
 {
+    /// <summary>
+    /// Compressor and decompressor for the RLE format used in several of the games for the
+    /// newer Nintendo consoles and handhelds.
+    /// </summary>
     public class RLE : NitroCFormat
     {
         public RLE() : base(0x30) { }

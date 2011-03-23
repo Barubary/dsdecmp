@@ -6,7 +6,7 @@ using System.IO;
 namespace DSDecmp.Formats.Nitro
 {
     /// <summary>
-    /// Decompressor for the LZ-0x10 format used in many of the games for the
+    /// Compressor and decompressor for the LZ-0x10 format used in many of the games for the
     /// newer Nintendo consoles and handhelds.
     /// </summary>
     public class LZ10 : NitroCFormat

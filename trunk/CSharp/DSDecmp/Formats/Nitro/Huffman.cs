@@ -56,7 +56,7 @@ namespace DSDecmp.Formats.Nitro
                 blockSize = BlockSize.EIGHTBIT;
             if (type != (byte)blockSize)
                 throw new InvalidDataException("The provided stream is not a valid Huffman "
-                            + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
+                            + "compressed stream (invalid type 0x" + type.ToString("X") + "); unknown block size.");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = base.Bytes2Size(sizeBytes);
@@ -84,7 +84,76 @@ namespace DSDecmp.Formats.Nitro
             // the given value is odd or even.
             HuffTreeNode rootNode = new HuffTreeNode(instream, false, 5, instream.Position + treeSize);
 
-            throw new NotImplementedException();
+            int data = 0;
+            byte bitsLeft = 0;
+
+            // a cache used for writing when the block size is four bits
+            int cachedByte = -1;
+
+            int currentSize = 0;
+            HuffTreeNode currentNode = rootNode;
+
+            while (currentSize < decompressedSize)
+            {
+                #region find the next reference to a data node
+                while (!currentNode.IsData)
+                {
+                    // if there are no bits left to read in the data, get a new byte from the input
+                    if (bitsLeft == 0)
+                    {
+                        if (readBytes >= inLength)
+                            throw new NotEnoughDataException(currentSize, decompressedSize);
+                        // the spec indicates the data is read in groups of four bytes, but because of
+                        // the order the bits are read in, we might as well read one byte at a time.
+                        data = instream.ReadByte();
+                        if (data < 0)
+                            throw new StreamTooShortException();
+                        bitsLeft = 8;
+                    }
+                    // get the next bit
+                    bitsLeft--;
+                    bool nextIsOne = (data & (1 << bitsLeft)) > 0;
+                    // go to the next node, the direction of the child depending on the value of the current/next bit
+                    currentNode = nextIsOne ? currentNode.Child1 : currentNode.Child0;
+                }
+                #endregion
+
+                #region write the data in the current node (when possible)
+                switch (blockSize)
+                {
+                    case BlockSize.EIGHTBIT:
+                        {
+                            // just copy the data if the block size is a full byte
+                            outstream.WriteByte(currentNode.Data);
+                            currentSize++;
+                            break;
+                        }
+                    case BlockSize.FOURBIT:
+                        {
+                            // cache the first half of the data if the block size is a half byte
+                            if (cachedByte < 0)
+                            {
+                                cachedByte = currentNode.Data << 4;
+                            }
+                            else
+                            {
+                                // if we already cached a half-byte, combine the two halves and write the full byte.
+                                cachedByte |= currentNode.Data;
+                                outstream.WriteByte((byte)cachedByte);
+                                currentSize++;
+                                // be sure to forget the two written half-bytes
+                                cachedByte = -1;
+                            }
+                            break;
+                        }
+                    default:
+                        throw new Exception("Unknown block size " + blockSize.ToString());
+                }
+                #endregion
+
+                // make sure to start over next round
+                currentNode = rootNode;
+            }
         }
 
         public override void Compress(Stream instream, long inLength, Stream outstream)
@@ -97,9 +166,13 @@ namespace DSDecmp.Formats.Nitro
         public class HuffTreeNode
         {
             /// <summary>
-            /// The data contained in this node. May not mena anything when <code>isData == false</code>
+            /// The data contained in this node. May not mean anything when <code>isData == false</code>
             /// </summary>
             private byte data;
+            /// <summary>
+            /// The data contained in this node. May not mean anything when <code>isData == false</code>
+            /// </summary>
+            public byte Data { get { return this.data; } }
             /// <summary>
             /// A flag indicating if this ia a 'child1' of another node.
             /// </summary>
@@ -108,15 +181,27 @@ namespace DSDecmp.Formats.Nitro
             /// A flag indicating if this node contains data. If not, this is not a leaf node.
             /// </summary>
             private bool isData;
+            /// <summary>
+            /// Returns true if this node represents data.
+            /// </summary>
+            public bool IsData { get { return this.isData; } }
 
             /// <summary>
             /// The child of this node at side 0
             /// </summary>
             private HuffTreeNode child0;
             /// <summary>
+            /// The child of this node at side 0
+            /// </summary>
+            public HuffTreeNode Child0 { get { return this.child0; } }
+            /// <summary>
             /// The child of this node at side 1
             /// </summary>
             private HuffTreeNode child1;
+            /// <summary>
+            /// The child of this node at side 1
+            /// </summary>
+            public HuffTreeNode Child1 { get { return this.child1; } }
 
             /// <summary>
             /// Creates a new node in the Huffman tree.

@@ -142,7 +142,7 @@ namespace DSDecmp.Formats.Nitro
 
         }
 
-        public override void Compress(Stream instream, long inLength, Stream outstream)
+        public override int Compress(Stream instream, long inLength, Stream outstream)
         {
             throw new NotImplementedException();
         }

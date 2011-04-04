@@ -156,7 +156,7 @@ namespace DSDecmp.Formats.Nitro
             }
         }
 
-        public override void Compress(Stream instream, long inLength, Stream outstream)
+        public override int Compress(Stream instream, long inLength, Stream outstream)
         {
             throw new NotImplementedException();
         }
@@ -173,10 +173,6 @@ namespace DSDecmp.Formats.Nitro
             /// The data contained in this node. May not mean anything when <code>isData == false</code>
             /// </summary>
             public byte Data { get { return this.data; } }
-            /// <summary>
-            /// A flag indicating if this ia a 'child1' of another node.
-            /// </summary>
-            private bool isOne;
             /// <summary>
             /// A flag indicating if this node contains data. If not, this is not a leaf node.
             /// </summary>

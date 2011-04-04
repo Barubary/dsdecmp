@@ -80,13 +80,14 @@ namespace DSDecmp.Formats
         /// </summary>
         /// <param name="infile">The file to compress.</param>
         /// <param name="outfile">The file to write the compressed data to.</param>
-        public void Compress(string infile, string outfile)
+        /// <returns>The size of the compressed file.</returns>
+        public int Compress(string infile, string outfile)
         {
             // open the proper Streams, and delegate to the format-specific code.
             using (FileStream inStream = File.Open(infile, FileMode.Open),
                              outStream = File.Create(outfile))
             {
-                this.Compress(inStream, inStream.Length, outStream);
+                return this.Compress(inStream, inStream.Length, outStream);
             }
         }
 
@@ -97,6 +98,7 @@ namespace DSDecmp.Formats
         /// <param name="instream">The stream to read plaintext data from.</param>
         /// <param name="inLength">The length of the plaintext data.</param>
         /// <param name="outstream">The stream to write the compressed data to.</param>
-        public abstract void Compress(Stream instream, long inLength, Stream outstream);
+        /// <returns>The size of the compressed stream.</returns>
+        public abstract int Compress(Stream instream, long inLength, Stream outstream);
     }
 }

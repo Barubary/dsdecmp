@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Exceptions\InputTooLargeException.cs" />
     <Compile Include="Exceptions\StreamTooShortException.cs" />
     <Compile Include="Formats\CompressionFormat.cs" />
     <Compile Include="Formats\Nitro\Huffman.cs" />

@@ -119,9 +119,117 @@ namespace DSDecmp.Formats.Nitro
             }
         }
 
-        public override void Compress(Stream instream, long inLength, Stream outstream)
+        public override int Compress(Stream instream, long inLength, Stream outstream)
         {
-            throw new NotImplementedException();
+            List<byte> compressedData = new List<byte>();
+
+            // at most 0x7F+3=130 bytes are compressed into a single block.
+            // (and at most 0x7F+1=128 in an uncompressed block, however we need to read 2
+            // more, since the last byte may be part of a repetition).
+            byte[] dataBlock = new byte[130];
+            // the length of the valid content in the current data block
+            int currentBlockLength = 0;
+
+            int readLength = 0;
+            int nextByte;
+            int repCount = 1;
+            while (readLength < inLength)
+            {
+                bool foundRepetition = false;
+
+                while (currentBlockLength < dataBlock.Length)
+                {
+                    nextByte = instream.ReadByte();
+                    if (nextByte < 0)
+                        throw new StreamTooShortException();
+
+                    dataBlock[currentBlockLength++] = (byte)nextByte;
+                    if (currentBlockLength > 1)
+                    {
+                        if (nextByte == dataBlock[currentBlockLength - 2])
+                            repCount++;
+                        else
+                            repCount = 1;
+                    }
+
+                    foundRepetition = repCount > 2;
+                    if (foundRepetition)
+                        break;
+                }
+
+
+                int numUncompToCopy = 0;
+                if (foundRepetition)
+                {
+                    // if a repetition was found, copy block size - 3 bytes as compressed data
+                    numUncompToCopy = currentBlockLength - 3;
+                }
+                else
+                {
+                    // if no repetition was found, copy min(block size, max block size - 2) bytes as uncompressed data.
+                    numUncompToCopy = Math.Min(currentBlockLength, dataBlock.Length - 2);
+                }
+
+                #region insert uncompressed block
+                if (numUncompToCopy > 0)
+                {
+                    byte flag = (byte)(numUncompToCopy - 1);
+                    compressedData.Add(flag);
+                    for (int i = 0; i < numUncompToCopy; i++)
+                        compressedData.Add(dataBlock[i]);
+                    // shift some possibly remaining bytes to the start
+                    for (int i = numUncompToCopy; i < currentBlockLength; i++)
+                        dataBlock[i - numUncompToCopy] = dataBlock[i];
+                    currentBlockLength -= numUncompToCopy;
+                }
+                #endregion
+
+                if (foundRepetition)
+                {
+                    // if a repetition was found, continue until the first different byte
+                    // (or until the buffer is full)
+                    while (currentBlockLength < dataBlock.Length)
+                    {
+                        nextByte = instream.ReadByte();
+                        if (nextByte < 0)
+                            throw new StreamTooShortException();
+
+                        dataBlock[currentBlockLength++] = (byte)nextByte;
+
+                        if (nextByte != dataBlock[0])
+                            break;
+                        else
+                            repCount++;
+                    }
+
+                    // the next repCount bytes are the same.
+                    #region insert compressed block
+                    byte flag = (byte)(0x80 | (repCount - 3));
+                    compressedData.Add(flag);
+                    compressedData.Add(dataBlock[0]);
+                    // make sure to shift the possible extra byte to the start
+                    if (repCount != currentBlockLength)
+                        dataBlock[0] = dataBlock[currentBlockLength - 1];
+                    currentBlockLength -= repCount;
+                    #endregion
+                }
+            }
+
+            if (compressedData.Count > 0xFFFFFF)
+                throw new InputTooLargeException();
+
+            // write the RLE marker and the decompressed size
+            outstream.WriteByte(0x30);
+            int compLen = compressedData.Count;
+            outstream.WriteByte((byte)(compLen & 0xFF));
+            outstream.WriteByte((byte)((compLen >> 8) & 0xFF));
+            outstream.WriteByte((byte)((compLen >> 16) & 0xFF));
+
+            // write the compressed data
+            outstream.Write(compressedData.ToArray(), 0, compLen);
+
+            // the total compressed stream length is the compressed data length + the 4-byte header
+            return compLen + 4;
         }
     }
 }

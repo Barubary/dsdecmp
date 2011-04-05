@@ -117,10 +117,17 @@ namespace DSDecmp.Formats.Nitro
                     #endregion
                 }
             }
+
+            if (readBytes < inLength)
+                throw new TooMuchInputException(readBytes, inLength);
         }
 
         public override int Compress(Stream instream, long inLength, Stream outstream)
         {
+
+            if (inLength > 0xFFFFFF)
+                throw new InputTooLargeException();
+
             List<byte> compressedData = new List<byte>();
 
             // at most 0x7F+3=130 bytes are compressed into a single block.
@@ -227,15 +234,12 @@ namespace DSDecmp.Formats.Nitro
                 currentBlockLength = 0;
             }
 
-            if (compressedData.Count > 0xFFFFFF)
-                throw new InputTooLargeException();
-
             // write the RLE marker and the decompressed size
             outstream.WriteByte(0x30);
             int compLen = compressedData.Count;
-            outstream.WriteByte((byte)(compLen & 0xFF));
-            outstream.WriteByte((byte)((compLen >> 8) & 0xFF));
-            outstream.WriteByte((byte)((compLen >> 16) & 0xFF));
+            outstream.WriteByte((byte)(inLength & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
 
             // write the compressed data
             outstream.Write(compressedData.ToArray(), 0, compLen);

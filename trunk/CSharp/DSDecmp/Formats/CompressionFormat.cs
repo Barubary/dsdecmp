@@ -50,6 +50,10 @@ namespace DSDecmp.Formats
         /// <param name="outfile">The target location of the decompressed file.</param>
         public void Decompress(string infile, string outfile)
         {
+            // make sure the output directory exists
+            string outDirectory = Path.GetDirectoryName(outfile);
+            if (!Directory.Exists(outDirectory))
+                Directory.CreateDirectory(outDirectory);
             // open the two given files, and delegate to the format-specific code.
             using (FileStream inStream = new FileStream(infile, FileMode.Open),
                              outStream = new FileStream(outfile, FileMode.Create))
@@ -83,6 +87,10 @@ namespace DSDecmp.Formats
         /// <returns>The size of the compressed file.</returns>
         public int Compress(string infile, string outfile)
         {
+            // make sure the output directory exists
+            string outDirectory = Path.GetDirectoryName(outfile);
+            if (!Directory.Exists(outDirectory))
+                Directory.CreateDirectory(outDirectory);
             // open the proper Streams, and delegate to the format-specific code.
             using (FileStream inStream = File.Open(infile, FileMode.Open),
                              outStream = File.Create(outfile))

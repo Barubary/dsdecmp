@@ -212,6 +212,9 @@ namespace DSDecmp.Formats.Nitro
                     bufferOffset = (bufferOffset + 1) % bufferLength;
                 }
             }
+
+            if (readBytes < inLength)
+                throw new TooMuchInputException(readBytes, inLength);
         }
 
         public override int Compress(Stream instream, long inLength, Stream outstream)

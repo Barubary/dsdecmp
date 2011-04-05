@@ -15,13 +15,13 @@ namespace DSDecmp.Formats.Nitro
 
         public Huffman() : base(0) { }
 
-        public override bool Supports(System.IO.Stream stream)
+        public override bool Supports(System.IO.Stream stream, long inLength)
         {
             base.magicByte = (byte)BlockSize.FOURBIT;
-            if (base.Supports(stream))
+            if (base.Supports(stream, inLength))
                 return true;
             base.magicByte = (byte)BlockSize.EIGHTBIT;
-            return base.Supports(stream);
+            return base.Supports(stream, inLength);
         }
 
         public override void Decompress(Stream instream, long inLength, Stream outstream)
@@ -154,6 +154,9 @@ namespace DSDecmp.Formats.Nitro
                 // make sure to start over next round
                 currentNode = rootNode;
             }
+
+            if (readBytes < inLength)
+                throw new TooMuchInputException(readBytes, inLength);
         }
 
         public override int Compress(Stream instream, long inLength, Stream outstream)

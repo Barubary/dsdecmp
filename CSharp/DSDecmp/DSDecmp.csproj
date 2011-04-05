@@ -53,7 +53,7 @@
     <Compile Include="Formats\Nitro\NitroCFormat.cs" />
     <Compile Include="Exceptions\NotEnoughDataException.cs" />
     <Compile Include="Formats\Nitro\RLE.cs" />
-    <Compile Include="NewProgram.cs" />
+    <Compile Include="TestProgram.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

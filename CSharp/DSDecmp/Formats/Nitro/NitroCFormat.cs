@@ -45,7 +45,7 @@ namespace DSDecmp.Formats.Nitro
                 return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
         }
 
-        public override bool Supports(System.IO.Stream stream)
+        public override bool Supports(System.IO.Stream stream, long inLength)
         {
             long startPosition = stream.Position;
             try

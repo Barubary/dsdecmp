@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="Exceptions\InputTooLargeException.cs" />
     <Compile Include="Exceptions\StreamTooShortException.cs" />
+    <Compile Include="Exceptions\TooMuchInputException.cs" />
     <Compile Include="Formats\CompressionFormat.cs" />
     <Compile Include="Formats\Nitro\Huffman.cs" />
     <Compile Include="Formats\Nitro\LZ10.cs" />
@@ -52,6 +53,7 @@
     <Compile Include="Formats\Nitro\NitroCFormat.cs" />
     <Compile Include="Exceptions\NotEnoughDataException.cs" />
     <Compile Include="Formats\Nitro\RLE.cs" />
+    <Compile Include="NewProgram.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

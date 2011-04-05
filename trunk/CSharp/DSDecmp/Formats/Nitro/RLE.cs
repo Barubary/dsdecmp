@@ -137,11 +137,12 @@ namespace DSDecmp.Formats.Nitro
             {
                 bool foundRepetition = false;
 
-                while (currentBlockLength < dataBlock.Length)
+                while (currentBlockLength < dataBlock.Length && readLength < inLength)
                 {
                     nextByte = instream.ReadByte();
                     if (nextByte < 0)
                         throw new StreamTooShortException();
+                    readLength++;
 
                     dataBlock[currentBlockLength++] = (byte)nextByte;
                     if (currentBlockLength > 1)
@@ -188,11 +189,12 @@ namespace DSDecmp.Formats.Nitro
                 {
                     // if a repetition was found, continue until the first different byte
                     // (or until the buffer is full)
-                    while (currentBlockLength < dataBlock.Length)
+                    while (currentBlockLength < dataBlock.Length && readLength < inLength)
                     {
                         nextByte = instream.ReadByte();
                         if (nextByte < 0)
                             throw new StreamTooShortException();
+                        readLength++;
 
                         dataBlock[currentBlockLength++] = (byte)nextByte;
 
@@ -213,6 +215,16 @@ namespace DSDecmp.Formats.Nitro
                     currentBlockLength -= repCount;
                     #endregion
                 }
+            }
+
+            // write any reamaining bytes as uncompressed
+            if (currentBlockLength > 0)
+            {
+                byte flag = (byte)(currentBlockLength - 1);
+                compressedData.Add(flag);
+                for (int i = 0; i < currentBlockLength; i++)
+                    compressedData.Add(dataBlock[i]);
+                currentBlockLength = 0;
             }
 
             if (compressedData.Count > 0xFFFFFF)

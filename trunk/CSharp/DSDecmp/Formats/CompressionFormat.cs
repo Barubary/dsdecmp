@@ -24,7 +24,7 @@ namespace DSDecmp.Formats
             // open the file, and delegate to the decompressor-specific code.
             using (FileStream fstr = new FileStream(file, FileMode.Open))
             {
-                return this.Supports(fstr);
+                return this.Supports(fstr, fstr.Length);
             }
         }
 
@@ -37,9 +37,10 @@ namespace DSDecmp.Formats
         /// <param name="stream">The stream that may or may not contain compressed data. The
         /// position of this stream may change during this call, but will be returned to its
         /// original position when the method returns.</param>
+        /// <param name="inLength">The length of the input stream.</param>
         /// <returns>False if the data can certainly not be decompressed using this decompressor.
         /// True if the data may potentially be decompressed using this decompressor.</returns>
-        public abstract bool Supports(Stream stream);
+        public abstract bool Supports(Stream stream, long inLength);
 
         /// <summary>
         /// Decompresses the given file, writing the deocmpressed data to the given output file.

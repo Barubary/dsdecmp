@@ -140,6 +140,9 @@ namespace DSDecmp.Formats.Nitro
                 }
             }
 
+            if (readBytes < inLength)
+                throw new TooMuchInputException(readBytes, inLength);
+
         }
 
         public override int Compress(Stream instream, long inLength, Stream outstream)

@@ -31,7 +31,7 @@ namespace DSDecmp.Formats.Nitro
 
             byte type = (byte)instream.ReadByte();
             if (type != base.magicByte)
-                throw new InvalidDataException("The provided stream is not a valid LZ-0x11 "
+                throw new InvalidDataException("The provided stream is not a valid RLE "
                             + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);

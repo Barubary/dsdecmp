@@ -76,7 +76,7 @@ namespace DSDecmp.Formats.Nitro
             int bufferOffset = 0;
             
             int currentOutSize = 0;
-            int flags = 0, mask = 0;
+            int flags = 0, mask = 1;
             while (currentOutSize < decompressedSize)
             {
                 // (throws when requested new flags byte is not available)
@@ -196,7 +196,7 @@ namespace DSDecmp.Formats.Nitro
                         buffer[bufferOffset] = next;
                         bufferOffset = (bufferOffset + 1) % bufferLength;
                     }
-
+                    currentOutSize += length;
                 }
                 else
                 {
@@ -206,8 +206,7 @@ namespace DSDecmp.Formats.Nitro
                     if (next < 0)
                         throw new StreamTooShortException();
 
-                    currentOutSize++;
-                    outstream.WriteByte((byte)next);
+                    outstream.WriteByte((byte)next); currentOutSize++;
                     buffer[bufferOffset] = (byte)next;
                     bufferOffset = (bufferOffset + 1) % bufferLength;
                 }

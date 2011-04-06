@@ -58,7 +58,7 @@ namespace DSDecmp.Formats.Nitro
             
 
             int currentOutSize = 0;
-            int flags = 0, mask = 0;
+            int flags = 0, mask = 1;
             while (currentOutSize < decompressedSize)
             {
                 // (throws when requested new flags byte is not available)
@@ -123,7 +123,7 @@ namespace DSDecmp.Formats.Nitro
                         buffer[bufferOffset] = next;
                         bufferOffset = (bufferOffset + 1) % bufferLength;
                     }
-
+                    currentOutSize += length;
                 }
                 else
                 {

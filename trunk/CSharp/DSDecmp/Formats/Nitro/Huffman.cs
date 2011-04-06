@@ -69,29 +69,45 @@ namespace DSDecmp.Formats.Nitro
                 readBytes += 4;
             }
 
+            #region Read the Huff-tree
+
             if (readBytes >= inLength)
                 throw new NotEnoughDataException(0, decompressedSize);
             int treeSize = instream.ReadByte(); readBytes++;
             if (treeSize < 0)
                 throw new InvalidDataException("The stream is too short to contain a Huffman tree.");
 
-            treeSize = (treeSize * 2) + 1;
+            treeSize = (treeSize + 1) * 2;
+            
             if (readBytes + treeSize >= inLength)
                 throw new InvalidDataException("The Huffman tree is too large for the given input stream.");
+
+            long treeEnd = (instream.Position - 1) + treeSize;
 
             // the relative offset may be 4 more (when the initial decompressed size is 0), but
             // since it's relative that doesn't matter, especially when it only matters if
             // the given value is odd or even.
-            HuffTreeNode rootNode = new HuffTreeNode(instream, false, 5, instream.Position + treeSize);
+            HuffTreeNode rootNode = new HuffTreeNode(instream, false, 5, treeEnd);
 
-            int data = 0;
+            readBytes += treeSize;
+            // re-position the stream after the tree (the stream is currently positioned after the root
+            // node, which is located at the start of the tree definition)
+            instream.Position = treeEnd;
+
+            #endregion
+
+            // the current u32 we are reading bits from.
+            uint data = 0;
+            // the amount of bits left to read from <data>
             byte bitsLeft = 0;
 
             // a cache used for writing when the block size is four bits
             int cachedByte = -1;
 
+            // the current output size
             int currentSize = 0;
             HuffTreeNode currentNode = rootNode;
+            byte[] buffer = new byte[4];
 
             while (currentSize < decompressedSize)
             {
@@ -103,12 +119,12 @@ namespace DSDecmp.Formats.Nitro
                     {
                         if (readBytes >= inLength)
                             throw new NotEnoughDataException(currentSize, decompressedSize);
-                        // the spec indicates the data is read in groups of four bytes, but because of
-                        // the order the bits are read in, we might as well read one byte at a time.
-                        data = instream.ReadByte();
-                        if (data < 0)
+                        int nRead = instream.Read(buffer, 0, 4);
+                        if (nRead < 4)
                             throw new StreamTooShortException();
-                        bitsLeft = 8;
+                        readBytes += nRead;
+                        data = BitConverter.ToUInt32(buffer, 0);
+                        bitsLeft = 32;
                     }
                     // get the next bit
                     bitsLeft--;
@@ -155,6 +171,12 @@ namespace DSDecmp.Formats.Nitro
                 currentNode = rootNode;
             }
 
+            // the data is 4-byte aligned. Although very unlikely in this case (compressed bit blocks
+            // are always 4 bytes long, and the tree size is generally 4-byte aligned as well),
+            // skip any padding due to alignment.
+            if (readBytes % 4 != 0)
+                readBytes += 4 - (readBytes % 4);
+
             if (readBytes < inLength)
                 throw new TooMuchInputException(readBytes, inLength);
         }
@@ -165,7 +187,9 @@ namespace DSDecmp.Formats.Nitro
         }
 
 
-
+        /// <summary>
+        /// A single node in a Huffman tree.
+        /// </summary>
         public class HuffTreeNode
         {
             /// <summary>
@@ -173,9 +197,22 @@ namespace DSDecmp.Formats.Nitro
             /// </summary>
             private byte data;
             /// <summary>
-            /// The data contained in this node. May not mean anything when <code>isData == false</code>
+            /// A flag indicating if this node has been filled.
             /// </summary>
-            public byte Data { get { return this.data; } }
+            private bool isFilled;
+            /// <summary>
+            /// The data contained in this node. May not mean anything when <code>isData == false</code>.
+            /// Throws a NullReferenceException when this node has not been defined (ie: reference was outside the
+            /// bounds of the tree definition)
+            /// </summary>
+            public byte Data
+            {
+                get
+                {
+                    if (!this.isFilled) throw new NullReferenceException("Reference to an undefined node in the huffman tree.");
+                    return this.data;
+                }
+            }
             /// <summary>
             /// A flag indicating if this node contains data. If not, this is not a leaf node.
             /// </summary>
@@ -210,6 +247,8 @@ namespace DSDecmp.Formats.Nitro
             /// <param name="isData">If this node is a data-node.</param>
             /// <param name="relOffset">The offset of this node in the source data, relative to the start
             /// of the compressed file.</param>
+            /// <param name="maxStreamPos">The indicated end of the huffman tree. If the stream is past
+            /// this position, the tree is invalid.</param>
             public HuffTreeNode(Stream stream, bool isData, long relOffset, long maxStreamPos)
             {
                 /*
@@ -223,8 +262,14 @@ namespace DSDecmp.Formats.Nitro
                     Data nodes are (when End Flag was set in parent node):
                     Bit0-7   Data (upper bits should be zero if Data Size is less than 8)
                  */
-                if (stream.Position <= maxStreamPos)
-                    throw new InvalidDataException("The Huffman tree does not fit in the available number of bytes.");
+
+                if (stream.Position >= maxStreamPos)
+                {
+                    // this happens when part of the tree is unused.
+                    this.isFilled = false;
+                    return;
+                }
+                this.isFilled = true;
                 int readData = stream.ReadByte();
                 if (readData < 0)
                     throw new StreamTooShortException();
@@ -235,8 +280,8 @@ namespace DSDecmp.Formats.Nitro
                 if (!this.isData)
                 {
                     int offset = this.data & 0x3F;
-                    bool zeroIsData = (this.data & 0x40) > 0;
-                    bool oneIsData = (this.data & 0x80) > 0;
+                    bool zeroIsData = (this.data & 0x80) > 0;
+                    bool oneIsData = (this.data & 0x40) > 0;
 
                     // off AND NOT 1 == off XOR (off AND 1)
                     long zeroRelOffset = (relOffset ^ (relOffset & 1)) + offset * 2 + 2;
@@ -246,11 +291,23 @@ namespace DSDecmp.Formats.Nitro
                     stream.Position += (zeroRelOffset - relOffset) - 1;
                     // read the 0-node
                     this.child0 = new HuffTreeNode(stream, zeroIsData, zeroRelOffset, maxStreamPos);
-                    // the 1-node is dircetly behind the 0-node
+                    // the 1-node is directly behind the 0-node
                     this.child1 = new HuffTreeNode(stream, oneIsData, zeroRelOffset + 1, maxStreamPos);
 
                     // reset the stream position to right behind this node's data
                     stream.Position = currStreamPos;
+                }
+            }
+
+            public override string ToString()
+            {
+                if (this.isData)
+                {
+                    return "<" + this.data.ToString("X2") + ">";
+                }
+                else
+                {
+                    return "[" + this.child0.ToString() + "," + this.child1.ToString() + "]";
                 }
             }
             

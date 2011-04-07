@@ -123,7 +123,7 @@ namespace DSDecmp.Formats.Nitro
                         if (nRead < 4)
                             throw new StreamTooShortException();
                         readBytes += nRead;
-                        data = BitConverter.ToUInt32(buffer, 0);
+                        data = IOUtils.ToNDSu32(buffer, 0);
                         bitsLeft = 32;
                     }
                     // get the next bit

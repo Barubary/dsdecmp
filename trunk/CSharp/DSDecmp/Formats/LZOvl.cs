@@ -6,7 +6,9 @@ namespace DSDecmp.Formats
 {
     /// <summary>
     /// The LZ-Overlay compression format. Compresses part of the file from end to start.
-    /// Is used for the 'overlay' files in NDS games, as well as arm9.bin
+    /// Is used for the 'overlay' files in NDS games, as well as arm9.bin.
+    /// Note that the last 12 bytes should not be included in the 'inLength' argument when
+    /// decompressing arm9.bin.
     /// </summary>
     public class LZOvl : CompressionFormat
     {
@@ -37,7 +39,14 @@ namespace DSDecmp.Formats
             byte headerLen = header[header.Length - 5];
             if (inLength < headerLen)
                 return false;
-            // the compressed length is assumed to be valid.
+
+            // the compressed length should fit in the input file
+            int compressedLen = header[header.Length - 6] << 16
+                                | header[header.Length - 7] << 8
+                                | header[header.Length - 8];
+            if (compressedLen >= inLength - headerLen)
+                return false;
+
             // verify that the rest of the header is filled with 0xFF
             for (int i = header.Length - 9; i >= header.Length - headerLen; i--)
                 if (header[i] != 0xFF)

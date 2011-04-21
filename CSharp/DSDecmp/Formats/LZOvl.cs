@@ -9,10 +9,24 @@ namespace DSDecmp.Formats
     /// The LZ-Overlay compression format. Compresses part of the file from end to start.
     /// Is used for the 'overlay' files in NDS games, as well as arm9.bin.
     /// Note that the last 12 bytes should not be included in the 'inLength' argument when
-    /// decompressing arm9.bin.
+    /// decompressing arm9.bin. This is done automatically if a file is given instead of a stream.
     /// </summary>
     public class LZOvl : CompressionFormat
     {
+        #region Method: Supports(string file)
+        public override bool Supports(string file)
+        {
+            using (FileStream fstr = File.OpenRead(file))
+            {
+                long fLength = fstr.Length;
+                // arm9.bin is special in the sense that the last 12 bytes should/can be ignored.
+                if (Path.GetFileName(file) == "arm9.bin")
+                    fLength -= 0xC;
+                return this.Supports(fstr, fLength);
+            }
+        }
+        #endregion
+
         #region Method: Supports(Stream, long)
         public override bool Supports(System.IO.Stream stream, long inLength)
         {
@@ -53,6 +67,26 @@ namespace DSDecmp.Formats
                 if (header[i] != 0xFF)
                     return false;
             return true;
+        }
+        #endregion
+
+        #region Method: Decompress(string, string)
+        public override void Decompress(string infile, string outfile)
+        {
+            // make sure the output directory exists
+            string outDirectory = Path.GetDirectoryName(outfile);
+            if (!Directory.Exists(outDirectory))
+                Directory.CreateDirectory(outDirectory);
+            // open the two given files, and delegate to the format-specific code.
+            using (FileStream inStream = new FileStream(infile, FileMode.Open),
+                             outStream = new FileStream(outfile, FileMode.Create))
+            {
+                long fLength = inStream.Length;
+                // arm9.bin needs special attention
+                if (Path.GetFileName(infile) == "arm9.bin")
+                    fLength -= 0xC;
+                this.Decompress(inStream, fLength, outStream);
+            }
         }
         #endregion
 

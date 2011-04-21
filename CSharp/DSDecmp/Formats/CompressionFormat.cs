@@ -19,7 +19,7 @@ namespace DSDecmp.Formats
         /// <param name="file">The name of the file to check.</param>
         /// <returns>False if the file can certainly not be decompressed using this decompressor.
         /// True if the file may potentially be decompressed using this decompressor.</returns>
-        public bool Supports(string file)
+        public virtual bool Supports(string file)
         {
             // open the file, and delegate to the decompressor-specific code.
             using (FileStream fstr = new FileStream(file, FileMode.Open))
@@ -49,7 +49,7 @@ namespace DSDecmp.Formats
         /// </summary>
         /// <param name="infile">The file to decompress.</param>
         /// <param name="outfile">The target location of the decompressed file.</param>
-        public void Decompress(string infile, string outfile)
+        public virtual void Decompress(string infile, string outfile)
         {
             // make sure the output directory exists
             string outDirectory = Path.GetDirectoryName(outfile);

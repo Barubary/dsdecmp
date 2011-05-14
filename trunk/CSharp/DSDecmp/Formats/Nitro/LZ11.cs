@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -11,8 +12,21 @@ namespace DSDecmp.Formats.Nitro
     /// </summary>
     public class LZ11 : NitroCFormat
     {
+
+        private static bool lookAhead = false;
+        /// <summary>
+        /// Sets the flag that determines if 'look-ahead'/DP should be used when compressing
+        /// with the LZ-11 format. The default is false, which is what is used in the original
+        /// implementation.
+        /// </summary>
+        public static bool LookAhead
+        {
+            set { lookAhead = value; }
+        }
+
         public LZ11() : base(0x11) { }
 
+        #region Decompression method
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region Format definition in NDSTEK style
@@ -115,7 +129,7 @@ namespace DSDecmp.Formats.Nitro
                     int disp = -1;
                     if (length == 0)
                     {
-                        #region case 0; (0B C)(D EF) + (0x11)(0x1) = (LEN)(DISP)
+                        #region case 0; 0(B C)(D EF) + (0x11)(0x1) = (LEN)(DISP)
 
                         // case 0:
                         // data = AB CD EF (with A=0)
@@ -221,10 +235,305 @@ namespace DSDecmp.Formats.Nitro
 
             return decompressedSize;
         }
+        #endregion
 
-        public override int Compress(Stream instream, long inLength, Stream outstream)
+        #region Original compression method
+        public unsafe override int Compress(Stream instream, long inLength, Stream outstream)
         {
-            throw new NotImplementedException();
+            // make sure the decompressed size fits in 3 bytes.
+            // There should be room for four bytes, however I'm not 100% sure if that can be used
+            // in every game, as it may not be a built-in function.
+            if (inLength > 0xFFFFFF)
+                throw new InputTooLargeException();
+
+            // use the other method if lookahead is enabled
+            if (lookAhead)
+            {
+                return CompressWithLA(instream, inLength, outstream);
+            }
+
+            // save the input data in an array to prevent having to go back and forth in a file
+            byte[] indata = new byte[inLength];
+            int numReadBytes = instream.Read(indata, 0, (int)inLength);
+            if (numReadBytes != inLength)
+                throw new StreamTooShortException();
+
+            // write the compression header first
+            outstream.WriteByte(this.magicByte);
+            outstream.WriteByte((byte)(inLength & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
+
+            int compressedLength = 4;
+
+            fixed (byte* instart = &indata[0])
+            {
+                // we do need to buffer the output, as the first byte indicates which blocks are compressed.
+                // this version does not use a look-ahead, so we do not need to buffer more than 8 blocks at a time.
+                // (a block is at most 4 bytes long)
+                byte[] outbuffer = new byte[8 * 4 + 1];
+                outbuffer[0] = 0;
+                int bufferlength = 1, bufferedBlocks = 0;
+                int readBytes = 0;
+                while (readBytes < inLength)
+                {
+                    #region If 8 blocks are bufferd, write them and reset the buffer
+                    // we can only buffer 8 blocks at a time.
+                    if (bufferedBlocks == 8)
+                    {
+                        outstream.Write(outbuffer, 0, bufferlength);
+                        compressedLength += bufferlength;
+                        // reset the buffer
+                        outbuffer[0] = 0;
+                        bufferlength = 1;
+                        bufferedBlocks = 0;
+                    }
+                    #endregion
+
+                    // determine if we're dealing with a compressed or raw block.
+                    // it is a compressed block when the next 3 or more bytes can be copied from
+                    // somewhere in the set of already compressed bytes.
+                    int disp;
+                    int oldLength = Math.Min(readBytes, 0x1000);
+                    int length = LZUtil.GetOccurrenceLength(instart + readBytes, (int)Math.Min(inLength - readBytes, 0x10110),
+                                                          instart + readBytes - oldLength, oldLength, out disp);
+
+                    // length not 3 or more? next byte is raw data
+                    if (length < 3)
+                    {
+                        outbuffer[bufferlength++] = *(instart + (readBytes++));
+                    }
+                    else
+                    {
+                        // 3 or more bytes can be copied? next (length) bytes will be compressed into 2 bytes
+                        readBytes += length;
+
+                        // mark the next block as compressed
+                        outbuffer[0] |= (byte)(1 << (7 - bufferedBlocks));
+
+                        if (length > 0x110)
+                        {
+                            // case 1: 1(B CD E)(F GH) + (0x111)(0x1) = (LEN)(DISP)
+                            outbuffer[bufferlength] = 0x10;
+                            outbuffer[bufferlength] |= (byte)(((length - 0x111) >> 12) & 0x0F);
+                            bufferlength++;
+                            outbuffer[bufferlength] = (byte)(((length - 0x111) >> 4) & 0xFF);
+                            bufferlength++;
+                            outbuffer[bufferlength] = (byte)(((length - 0x111) << 4) & 0xF0);
+                        }
+                        else if (length > 0x10)
+                        {
+                            // case 0; 0(B C)(D EF) + (0x11)(0x1) = (LEN)(DISP)
+                            outbuffer[bufferlength] = 0x00;
+                            outbuffer[bufferlength] |= (byte)(((length - 0x111) >> 4) & 0x0F);
+                            bufferlength++;
+                            outbuffer[bufferlength] = (byte)(((length - 0x111) << 4) & 0xF0);
+                        }
+                        else
+                        {
+                            // case > 1: (A)(B CD) + (0x1)(0x1) = (LEN)(DISP)
+                            outbuffer[bufferlength] = (byte)(((length - 1) << 4) & 0xF0);
+                        }
+                        // the last 1.5 bytes are always the disp
+                        outbuffer[bufferlength] |= (byte)(((disp - 1) >> 8) & 0x0F);
+                        bufferlength++;
+                        outbuffer[bufferlength] = (byte)((disp - 1) & 0xFF);
+                        bufferlength++;
+                    }
+                    bufferedBlocks++;
+                }
+
+                // copy the remaining blocks to the output
+                if (bufferedBlocks > 0)
+                {
+                    outstream.Write(outbuffer, 0, bufferlength);
+                    compressedLength += bufferlength;
+                    /*/ make the compressed file 4-byte aligned.
+                    while ((compressedLength % 4) != 0)
+                    {
+                        outstream.WriteByte(0);
+                        compressedLength++;
+                    }/**/
+                }
+            }
+
+            return compressedLength;
         }
+        #endregion
+
+        #region Dynamic Programming compression method
+        /// <summary>
+        /// Variation of the original compression method, making use of Dynamic Programming to 'look ahead'
+        /// and determine the optimal 'length' values for the compressed blocks. Is not 100% optimal,
+        /// as the flag-bytes are not taken into account.
+        /// </summary>
+        private unsafe int CompressWithLA(Stream instream, long inLength, Stream outstream)
+        {
+            // save the input data in an array to prevent having to go back and forth in a file
+            byte[] indata = new byte[inLength];
+            int numReadBytes = instream.Read(indata, 0, (int)inLength);
+            if (numReadBytes != inLength)
+                throw new StreamTooShortException();
+
+            // write the compression header first
+            outstream.WriteByte(this.magicByte);
+            outstream.WriteByte((byte)(inLength & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
+
+            int compressedLength = 4;
+
+            fixed (byte* instart = &indata[0])
+            {
+                // we do need to buffer the output, as the first byte indicates which blocks are compressed.
+                // this version does not use a look-ahead, so we do not need to buffer more than 8 blocks at a time.
+                // blocks are at most 4 bytes long.
+                byte[] outbuffer = new byte[8 * 4 + 1];
+                outbuffer[0] = 0;
+                int bufferlength = 1, bufferedBlocks = 0;
+                int readBytes = 0;
+
+                // get the optimal choices for len and disp
+                int[] lengths, disps;
+                this.GetOptimalCompressionLengths(instart, indata.Length, out lengths, out disps);
+                while (readBytes < inLength)
+                {
+                    // we can only buffer 8 blocks at a time.
+                    if (bufferedBlocks == 8)
+                    {
+                        outstream.Write(outbuffer, 0, bufferlength);
+                        compressedLength += bufferlength;
+                        // reset the buffer
+                        outbuffer[0] = 0;
+                        bufferlength = 1;
+                        bufferedBlocks = 0;
+                    }
+
+
+                    if (lengths[readBytes] == 1)
+                    {
+                        outbuffer[bufferlength++] = *(instart + (readBytes++));
+                    }
+                    else
+                    {
+                        // mark the next block as compressed
+                        outbuffer[0] |= (byte)(1 << (7 - bufferedBlocks));
+
+                        if (lengths[readBytes] > 0x110)
+                        {
+                            // case 1: 1(B CD E)(F GH) + (0x111)(0x1) = (LEN)(DISP)
+                            outbuffer[bufferlength] = 0x10;
+                            outbuffer[bufferlength] |= (byte)(((lengths[readBytes] - 0x111) >> 12) & 0x0F);
+                            bufferlength++;
+                            outbuffer[bufferlength] = (byte)(((lengths[readBytes] - 0x111) >> 4) & 0xFF);
+                            bufferlength++;
+                            outbuffer[bufferlength] = (byte)(((lengths[readBytes] - 0x111) << 4) & 0xF0);
+                        }
+                        else if (lengths[readBytes] > 0x10)
+                        {
+                            // case 0; 0(B C)(D EF) + (0x11)(0x1) = (LEN)(DISP)
+                            outbuffer[bufferlength] = 0x00;
+                            outbuffer[bufferlength] |= (byte)(((lengths[readBytes] - 0x111) >> 4) & 0x0F);
+                            bufferlength++;
+                            outbuffer[bufferlength] = (byte)(((lengths[readBytes] - 0x111) << 4) & 0xF0);
+                        }
+                        else
+                        {
+                            // case > 1: (A)(B CD) + (0x1)(0x1) = (LEN)(DISP)
+                            outbuffer[bufferlength] = (byte)(((lengths[readBytes] - 1) << 4) & 0xF0);
+                        }
+                        // the last 1.5 bytes are always the disp
+                        outbuffer[bufferlength] |= (byte)(((disps[readBytes] - 1) >> 8) & 0x0F);
+                        bufferlength++;
+                        outbuffer[bufferlength] = (byte)((disps[readBytes] - 1) & 0xFF);
+                        bufferlength++;
+
+                        readBytes += lengths[readBytes];
+                    }
+
+
+                    bufferedBlocks++;
+                }
+
+                // copy the remaining blocks to the output
+                if (bufferedBlocks > 0)
+                {
+                    outstream.Write(outbuffer, 0, bufferlength);
+                    compressedLength += bufferlength;
+                    /*/ make the compressed file 4-byte aligned.
+                    while ((compressedLength % 4) != 0)
+                    {
+                        outstream.WriteByte(0);
+                        compressedLength++;
+                    }/**/
+                }
+            }
+
+            return compressedLength;
+        }
+        #endregion
+
+        #region DP compression helper method; GetOptimalCompressionLengths
+        /// <summary>
+        /// Gets the optimal compression lengths for each start of a compressed block using Dynamic Programming.
+        /// This takes O(n^2) time, although in practice it will often be O(n^3) since one of the constants is 0x10110
+        /// (the maximum length of a compressed block)
+        /// </summary>
+        /// <param name="indata">The data to compress.</param>
+        /// <param name="inLength">The length of the data to compress.</param>
+        /// <param name="lengths">The optimal 'length' of the compressed blocks. For each byte in the input data,
+        /// this value is the optimal 'length' value. If it is 1, the block should not be compressed.</param>
+        /// <param name="disps">The 'disp' values of the compressed blocks. May be 0, in which case the
+        /// corresponding length will never be anything other than 1.</param>
+        private unsafe void GetOptimalCompressionLengths(byte* indata, int inLength, out int[] lengths, out int[] disps)
+        {
+            lengths = new int[inLength];
+            disps = new int[inLength];
+            int[] minLengths = new int[inLength];
+
+            for (int i = inLength - 1; i >= 0; i--)
+            {
+                // first get the compression length when the next byte is not compressed
+                minLengths[i] = int.MaxValue;
+                lengths[i] = 1;
+                if (i + 1 >= inLength)
+                    minLengths[i] = 1;
+                else
+                    minLengths[i] = 1 + minLengths[i + 1];
+                // then the optimal compressed length
+                int oldLength = Math.Min(0x1000, i);
+                // get the appropriate disp while at it. Takes at most O(n) time if oldLength is considered O(n) and 0x10110 constant.
+                // however since a lot of files will not be larger than 0x10110, this will often take ~O(n^2) time.
+                // be sure to bound the input length with 0x10110, as that's the maximum length for LZ-11 compressed blocks.
+                int maxLen = LZUtil.GetOccurrenceLength(indata + i, Math.Min(inLength - i, 0x10110),
+                                                 indata + i - oldLength, oldLength, out disps[i]);
+                if (disps[i] > i)
+                    throw new Exception("disp is too large");
+                for (int j = 3; j <= maxLen; j++)
+                {
+                    int blocklen;
+                    if (j > 0x110)
+                        blocklen = 4;
+                    else if (j > 0x10)
+                        blocklen = 3;
+                    else
+                        blocklen = 2;
+                    int newCompLen;
+                    if (i + j >= inLength)
+                        newCompLen = blocklen;
+                    else
+                        newCompLen = blocklen + minLengths[i + j];
+                    if (newCompLen < minLengths[i])
+                    {
+                        lengths[i] = j;
+                        minLengths[i] = newCompLen;
+                    }
+                }
+            }
+
+            // we could optimize this further to also optimize it with regard to the flag-bytes, but that would require 8 times
+            // more space and time (one for each position in the block) for only a potentially tiny increase in compression ratio.
+        }
+        #endregion
     }
 }

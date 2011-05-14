@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -192,7 +193,7 @@ namespace DSDecmp.Formats.Nitro
                 throw new StreamTooShortException();
 
             // write the compression header first
-            outstream.WriteByte(0x10);
+            outstream.WriteByte(this.magicByte);
             outstream.WriteByte((byte)(inLength & 0xFF));
             outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
             outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
@@ -227,7 +228,7 @@ namespace DSDecmp.Formats.Nitro
                     // somewhere in the set of already compressed bytes.
                     int disp;
                     int oldLength = Math.Min(readBytes, 0x1000);
-                    int length = this.GetOccurrenceLength(instart + readBytes, (int)Math.Min(inLength - readBytes, 0x12),
+                    int length = LZUtil.GetOccurrenceLength(instart + readBytes, (int)Math.Min(inLength - readBytes, 0x12),
                                                           instart + readBytes - oldLength, oldLength, out disp);
 
                     // length not 3 or more? next byte is raw data
@@ -285,7 +286,7 @@ namespace DSDecmp.Formats.Nitro
                 throw new StreamTooShortException();
 
             // write the compression header first
-            outstream.WriteByte(0x10);
+            outstream.WriteByte(this.magicByte);
             outstream.WriteByte((byte)(inLength & 0xFF));
             outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
             outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
@@ -388,7 +389,7 @@ namespace DSDecmp.Formats.Nitro
                 int oldLength = Math.Min(0x1000, i);
                 // get the appropriate disp while at it. Takes at most O(n) time if oldLength is considered O(n)
                 // be sure to bound the input length with 0x12, as that's the maximum length for LZ-10 compressed blocks.
-                int maxLen = GetOccurrenceLength(indata + i, Math.Min(inLength - i, 0x12), 
+                int maxLen = LZUtil.GetOccurrenceLength(indata + i, Math.Min(inLength - i, 0x12), 
                                                  indata + i - oldLength, oldLength, out disps[i]);
                 if (disps[i] > i)
                     throw new Exception("disp is too large");
@@ -411,49 +412,5 @@ namespace DSDecmp.Formats.Nitro
             // more space and time (one for each position in the block) for only a potentially tiny increase in compression ratio.
         }
         #endregion
-
-        /// <summary>
-        /// Determine the maximum size of a LZ-compressed block starting at newPtr, using the already compressed data
-        /// starting at oldPtr. Takes O(inLength * oldLength) = O(n^2) time.
-        /// </summary>
-        /// <param name="newPtr">The start of the data that needs to be compressed.</param>
-        /// <param name="newLength">The number of bytes that still need to be compressed.</param>
-        /// <param name="oldPtr">The start of the raw file.</param>
-        /// <param name="oldLength">The number of bytes already compressed.</param>
-        /// <param name="disp">The offset of the start of the longest block to refer to.</param>
-        /// <returns>The length of the longest sequence of bytes that can be copied from the already decompressed data.</returns>
-        private unsafe int GetOccurrenceLength(byte* newPtr, int newLength, byte* oldPtr, int oldLength, out int disp)
-        {
-            disp = 0;
-            if (newLength == 0)
-                return 0;
-            int maxLength = 0;
-            // try every possible 'disp' value (disp = oldLength - i)
-            for (int i = 0; i < oldLength - 1; i++)
-            {
-                // work from the start of the old data to the end, to mimic the original implementation's behaviour
-                // (and going from start to end or from end to start does not influence the compression ratio anyway)
-                byte* currentOldStart = oldPtr + i;
-                int currentLength = 0;
-                // determine the length we can copy if we go back (oldLength - i) bytes
-                // always check the next 'newLength' bytes, and not just the available 'old' bytes,
-                // as the copied data can also originate from what we're currently trying to compress.
-                for (int j = 0; j < newLength; j++)
-                {
-                    // stop when the bytes are no longer the same
-                    if (*(currentOldStart + j) != *(newPtr + j))
-                        break;
-                    currentLength++;
-                }
-
-                // update the optimal value
-                if (currentLength > maxLength)
-                {
-                    maxLength = currentLength;
-                    disp = oldLength - i;
-                }
-            }
-            return maxLength;
-        }
     }
 }

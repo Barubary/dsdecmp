@@ -90,7 +90,7 @@ namespace DSDecmp.Formats
         }
         #endregion
 
-        public override void Decompress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public override long Decompress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
         {
             #region Format description
             // Overlay LZ compression is basically just LZ-0x10 compression.
@@ -151,6 +151,8 @@ namespace DSDecmp.Formats
 
                 // make sure the input is positioned at the end of the file
                 instream.Position += 4;
+
+                return inLength - 4;
 
                 #endregion
             }
@@ -268,6 +270,8 @@ namespace DSDecmp.Formats
                 // make sure the input is positioned at the end of the file; the stream is currently
                 // at the compression header.
                 instream.Position += headerSize;
+
+                return decompressedLength + (inLength - headerSize - compressedSize);
             }
         }
 

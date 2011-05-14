@@ -27,7 +27,7 @@ namespace DSDecmp
         {
             Console.WriteLine("DSDecmp - Decompressor for compression formats used on the NDS - by Barubary");
             Console.WriteLine();
-            Console.WriteLine("Usage:\tDSDecmp (-c FORMAT) (-ge) input (output)");
+            Console.WriteLine("Usage:\tDSDecmp (-c FORMAT (FORMATOPTS)) (-ge) input (output)");
             Console.WriteLine();
             Console.WriteLine("Without the -c modifier, DSDecmp will decompress the input file to the output");
             Console.WriteLine("file. If the output file is a directory, the output file will be placed in that");
@@ -59,6 +59,12 @@ namespace DSDecmp
             Console.WriteLine("            ratio.");
             Console.WriteLine("    gba*  - The built-in compression format that gives the best compression");
             Console.WriteLine("            ratio, and is also supported by the GBA.");
+            Console.WriteLine();
+            Console.WriteLine("The following format options are available:");
+            Console.WriteLine(" lz10, lz11 and lzovl:");
+            Console.WriteLine("    -opt  : employs a better compression algorithm to boost the compression");
+            Console.WriteLine("            ratio. Not using this option will result in using the algorithm");
+            Console.WriteLine("            originally used to compress the game files.");
             Console.WriteLine();
             Console.WriteLine("Supplying the -ge modifier together with the -c modifier, the extension of the");
             Console.WriteLine("compressed files will be extended with the 'FORMAT' value that always results");

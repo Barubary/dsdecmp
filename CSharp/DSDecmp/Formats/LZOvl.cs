@@ -289,6 +289,7 @@ namespace DSDecmp.Formats
         }
         #endregion
 
+        #region Compression method; delegates to CompressNormal
         public override int Compress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
         {
             // don't bother trying to get the optimal not-compressed - compressed ratio for now.
@@ -348,6 +349,7 @@ namespace DSDecmp.Formats
                 return (int)inLength + 4;
             }
         }
+        #endregion
 
         #region 'Normal' compression method. Delegates to CompressWithLA when LookAhead is set
         /// <summary>
@@ -604,10 +606,17 @@ namespace DSDecmp.Formats
         }
         #endregion
 
+        #region DP compression helper method: GetOptimalCompressionPartLength
+        /// <summary>
+        /// Gets the 'optimal' length of the compressed part of the file.
+        /// Or rather: the length in such a way that compressing any more will not
+        /// result in a shorter file.
+        /// </summary>
+        /// <param name="blocklengths">The lengths of the compressed blocks, as gotten from GetOptimalCompressionLengths.</param>
+        /// <returns>The 'optimal' length of the compressed part of the file.</returns>
         private int GetOptimalCompressionPartLength(int[] blocklengths)
         {
-            // first determine the 8-block index of every block
-            int[] blockIndices = new int[blocklengths.Length];
+            // first determine the actual total compressed length using the optimal compression.
             int block8Idx = 0;
             int insideBlockIdx = 0;
             int totalCompLength = 0;
@@ -619,7 +628,6 @@ namespace DSDecmp.Formats
                     insideBlockIdx = 0;
                     totalCompLength++;
                 }
-                blockIndices[i] = block8Idx;
                 insideBlockIdx++;
 
                 if (blocklengths[i] >= 3)
@@ -653,5 +661,6 @@ namespace DSDecmp.Formats
             }
             return blocklengths.Length;
         }
+        #endregion
     }
 }

@@ -75,9 +75,10 @@ namespace DSDecmp.Formats
         /// input data may be read (if there is padding, for example), however never more than
         /// this number of bytes is read from the input stream.</param>
         /// <param name="outstream">The stream to write the decompressed data to.</param>
+        /// <returns>The length of the output data.</returns>
         /// <exception cref="NotEnoughDataException">When the given length of the input data
         /// is not enough to properly decompress the input.</exception>
-        public abstract void Decompress(Stream instream, long inLength, Stream outstream);
+        public abstract long Decompress(Stream instream, long inLength, Stream outstream);
 
         /// <summary>
         /// Compresses the given input file, and writes the compressed data to the given

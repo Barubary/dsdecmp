@@ -13,7 +13,7 @@ namespace DSDecmp.Formats.Nitro
     {
         public RLE() : base(0x30) { }
 
-        public override void Decompress(Stream instream, long inLength, Stream outstream)
+        public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             /*      
                 Data header (32bit)
@@ -119,7 +119,13 @@ namespace DSDecmp.Formats.Nitro
             }
 
             if (readBytes < inLength)
-                throw new TooMuchInputException(readBytes, inLength);
+            {
+                // the input may be 4-byte aligned.
+                if ((readBytes ^ (readBytes & 3)) + 4 < inLength)
+                    throw new TooMuchInputException(readBytes, inLength);
+            }
+
+            return decompressedSize;
         }
 
         public override int Compress(Stream instream, long inLength, Stream outstream)

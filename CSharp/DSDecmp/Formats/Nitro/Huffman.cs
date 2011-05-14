@@ -24,7 +24,7 @@ namespace DSDecmp.Formats.Nitro
             return base.Supports(stream, inLength);
         }
 
-        public override void Decompress(Stream instream, long inLength, Stream outstream)
+        public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region GBATEK format specification
             /*
@@ -178,7 +178,13 @@ namespace DSDecmp.Formats.Nitro
                 readBytes += 4 - (readBytes % 4);
 
             if (readBytes < inLength)
-                throw new TooMuchInputException(readBytes, inLength);
+            {
+                // the input may be 4-byte aligned.
+                if ((readBytes ^ (readBytes & 3)) + 4 < inLength)
+                    throw new TooMuchInputException(readBytes, inLength);
+            }
+
+            return decompressedSize;
         }
 
         public override int Compress(Stream instream, long inLength, Stream outstream)

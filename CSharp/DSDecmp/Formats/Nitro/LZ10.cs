@@ -110,7 +110,7 @@ namespace DSDecmp.Formats.Nitro
 
                     if (disp > currentOutSize)
                         throw new InvalidDataException("Cannot go back more than already written. "
-                                + "DISP = " + disp + ", #written bytes = 0x" + currentOutSize.ToString("X")
+                                + "DISP = 0x" + disp.ToString("X") + ", #written bytes = 0x" + currentOutSize.ToString("X")
                                 + " at 0x" + instream.Position.ToString("X"));
                     #endregion
 
@@ -223,12 +223,12 @@ namespace DSDecmp.Formats.Nitro
                 {
                     outstream.Write(outbuffer, 0, bufferlength);
                     compressedLength += bufferlength;
-                    // make the compressed file 4-byte aligned.
+                    /*/ make the compressed file 4-byte aligned.
                     while ((compressedLength % 4) != 0)
                     {
                         outstream.WriteByte(0);
                         compressedLength++;
-                    }
+                    }/**/
                 }
             }
 
@@ -251,13 +251,16 @@ namespace DSDecmp.Formats.Nitro
             if (newLength == 0)
                 return 0;
             int maxLength = 0;
-            for (int i = 1; i < oldLength; i++)
+            //for (int i = 1; i < oldLength; i++)
+            for (int i = 0; i < oldLength - 1; i++)
             {
                 // work from the end of the old data to the start, to mimic the original implementation's behaviour
-                byte* currentOldStart = oldPtr + oldLength - i;
+                //byte* currentOldStart = oldPtr + oldLength - i;
+                // WRONG: original works from start
+                byte* currentOldStart = oldPtr + i;
                 int currentLength = 0;
                 // determine the length we can copy if we go back i bytes
-                for (int j = 0; j < i && j < newLength; j++)
+                for (int j = 0; j < newLength; j++)
                 {
                     // stop when the bytes are no longer the same
                     if (*(currentOldStart + j) != *(newPtr + j))
@@ -268,7 +271,7 @@ namespace DSDecmp.Formats.Nitro
                 if (currentLength > maxLength)
                 {
                     maxLength = currentLength;
-                    disp = i;
+                    disp = oldLength - i;
                 }
             }
             return maxLength;

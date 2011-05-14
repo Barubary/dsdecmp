@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -12,6 +13,16 @@ namespace DSDecmp.Formats.Nitro
     public class Huffman : NitroCFormat
     {
         public enum BlockSize : byte { FOURBIT = 0x24, EIGHTBIT = 0x28 }
+
+        /// <summary>
+        /// Sets the block size used when using the Huffman format to compress.
+        /// </summary>
+        public static BlockSize CompressBlockSize { get; set; }
+
+        static Huffman()
+        {
+            CompressBlockSize = BlockSize.EIGHTBIT;
+        }
 
         public Huffman() : base(0) { }
 
@@ -189,10 +200,72 @@ namespace DSDecmp.Formats.Nitro
 
         public override int Compress(Stream instream, long inLength, Stream outstream)
         {
-            throw new NotImplementedException();
+            switch (CompressBlockSize)
+            {
+                case BlockSize.EIGHTBIT:
+                    return Compress8(instream, inLength, outstream);
+            }
+            return 0;
+        }
+
+        /// <summary>
+        /// Applies Huffman compression with a datablock size of 8 bits.
+        /// </summary>
+        /// <param name="instream">The stream to compress.</param>
+        /// <param name="inLength">The length of the input stream.</param>
+        /// <param name="outstream">The stream to write the decompressed data to.</param>
+        /// <returns>The size of the decompressed data.</returns>
+        private int Compress8(Stream instream, long inLength, Stream outstream)
+        {
+            if (inLength > 0xFFFFFF)
+                throw new InputTooLargeException();
+
+            // cache the input, as we need to build a frequency table
+            byte[] inputData = new byte[inLength];
+            instream.Read(inputData, 0, (int)inLength);
+
+            // build that frequency table.
+            int[] frequencies = new int[0x100];
+            for (int i = 0; i < inLength; i++)
+                frequencies[inputData[i]]++;
+
+            // build a Huffman tree from that frequency table
+            SimpleReversedPrioQueue<int, HuffTreeNode> prioQueue = new SimpleReversedPrioQueue<int, HuffTreeNode>();
+
+            // make all leaf nodes, and put them in the queue. Also save them for later use.
+            HuffTreeNode[] leaves = new HuffTreeNode[0x100];
+            for (int i = 0; i < 0x100; i++)
+            {
+                // there is no need to store leaves that are not used
+                if (frequencies[i] == 0)
+                    continue;
+                HuffTreeNode node = new HuffTreeNode((byte)i, true, null, null);
+                leaves[i] = node;
+                prioQueue.Enqueue(frequencies[i], node);
+            }
+            // combine the two nodes with the lowest total priority until
+            // there is only one left (the root node).
+            while (prioQueue.Count > 1)
+            {
+                int prio0, prio1;
+                HuffTreeNode node0 = prioQueue.Dequeue(out prio0);
+                HuffTreeNode node1 = prioQueue.Dequeue(out prio1);
+                HuffTreeNode newNode = new HuffTreeNode(0, false, node0, node1);
+                prioQueue.Enqueue(prio0 + prio1, newNode);
+            }
+            int rootPrio;
+            HuffTreeNode root = prioQueue.Dequeue(out rootPrio);
+            // set the depth of all nodes in the tree, such that we know for each leaf how long
+            // its codeword is.
+            root.Depth = 0;
+
+            // now that we have a tree, we can write that tree and follow with the data.
+
+            return 0;
         }
 
 
+        #region Utility class: HuffTreeNode
         /// <summary>
         /// A single node in a Huffman tree.
         /// </summary>
@@ -244,6 +317,50 @@ namespace DSDecmp.Formats.Nitro
             /// The child of this node at side 1
             /// </summary>
             public HuffTreeNode Child1 { get { return this.child1; } }
+            /// <summary>
+            /// The parent node of this node.
+            /// </summary>
+            public HuffTreeNode Parent { get; private set; }
+
+            private int depth;
+            /// <summary>
+            /// Get or set the depth of this node. Will not be set automatically, but
+            /// will be set recursively (the depth of all child nodes will be updated when this is set).
+            /// </summary>
+            public int Depth
+            {
+                get { return this.depth; }
+                set
+                {
+                    this.depth = value;
+                    // recursively set the depth of the child nodes.
+                    if (!this.isData)
+                    {
+                        this.child0.Depth = this.depth + 1;
+                        this.child1.Depth = this.depth + 1;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Manually creates a new node for a huffman tree.
+            /// </summary>
+            /// <param name="data">The data for this node.</param>
+            /// <param name="isData">If this node represents data.</param>
+            /// <param name="child0">The child of this node on the 0 side.</param>
+            /// <param name="child1">The child of this node on the 1 side.</param>
+            public HuffTreeNode(byte data, bool isData, HuffTreeNode child0, HuffTreeNode child1)
+            {
+                this.data = data;
+                this.isData = isData;
+                this.child0 = child0;
+                this.child1 = child1;
+                this.isFilled = true;
+                if (child0 != null)
+                    this.child0.Parent = this;
+                if (child1 != null)
+                    this.child1.Parent = this;
+            }
 
             /// <summary>
             /// Creates a new node in the Huffman tree.
@@ -297,8 +414,10 @@ namespace DSDecmp.Formats.Nitro
                     stream.Position += (zeroRelOffset - relOffset) - 1;
                     // read the 0-node
                     this.child0 = new HuffTreeNode(stream, zeroIsData, zeroRelOffset, maxStreamPos);
+                    this.child0.Parent = this;
                     // the 1-node is directly behind the 0-node
                     this.child1 = new HuffTreeNode(stream, oneIsData, zeroRelOffset + 1, maxStreamPos);
+                    this.child1.Parent = this;
 
                     // reset the stream position to right behind this node's data
                     stream.Position = currStreamPos;
@@ -316,7 +435,8 @@ namespace DSDecmp.Formats.Nitro
                     return "[" + this.child0.ToString() + "," + this.child1.ToString() + "]";
                 }
             }
-            
+
         }
+        #endregion
     }
 }

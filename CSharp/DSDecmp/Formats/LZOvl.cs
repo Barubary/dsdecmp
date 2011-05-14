@@ -307,7 +307,7 @@ namespace DSDecmp.Formats
             MemoryStream outMemStream = new MemoryStream();
             int compressedLength = this.CompressNormal(inMemStream, inLength, outMemStream);
 
-            int totalCompFileLength = compressedLength + 8;
+            int totalCompFileLength = (int)outMemStream.Length + 8;
             // make the file 4-byte aligned with padding in the header
             if (totalCompFileLength % 4 != 0)
                 totalCompFileLength += 4 - totalCompFileLength % 4;
@@ -316,10 +316,10 @@ namespace DSDecmp.Formats
             {
                 byte[] compData = outMemStream.ToArray();
                 Array.Reverse(compData);
-                outstream.Write(compData, 0, compressedLength);
-                int writtenBytes = compressedLength;
+                outstream.Write(compData, 0, compData.Length);
+                int writtenBytes = compData.Length;
                 // there always seem to be some padding FFs. Let's pad to make the file 4-byte aligned
-                while ((writtenBytes + 8) % 4 != 0)
+                while (writtenBytes % 4 != 0)
                 {
                     outstream.WriteByte(0xFF);
                     writtenBytes++;
@@ -329,7 +329,7 @@ namespace DSDecmp.Formats
                 outstream.WriteByte((byte)((compressedLength >> 8) & 0xFF));
                 outstream.WriteByte((byte)((compressedLength >> 16) & 0xFF));
 
-                int headerLength = totalCompFileLength - compressedLength;
+                int headerLength = totalCompFileLength - compData.Length;
                 outstream.WriteByte((byte)headerLength);
 
                 int extraSize = (int)inLength - totalCompFileLength;
@@ -466,7 +466,6 @@ namespace DSDecmp.Formats
         }
         #endregion
 
-
         #region Dynamic Programming compression method
         /// <summary>
         /// Variation of the original compression method, making use of Dynamic Programming to 'look ahead'
@@ -495,7 +494,10 @@ namespace DSDecmp.Formats
                 // get the optimal choices for len and disp
                 int[] lengths, disps;
                 this.GetOptimalCompressionLengths(instart, indata.Length, out lengths, out disps);
-                while (readBytes < inLength)
+
+                int optCompressionLength = this.GetOptimalCompressionPartLength(lengths);
+
+                while (readBytes < optCompressionLength)
                 {
                     // we can only buffer 8 blocks at a time.
                     if (bufferedBlocks == 8)
@@ -536,6 +538,9 @@ namespace DSDecmp.Formats
                     outstream.Write(outbuffer, 0, bufferlength);
                     compressedLength += bufferlength;
                 }
+
+                while (readBytes < inLength)
+                    outstream.WriteByte(*(instart + (readBytes++)));
             }
 
             return compressedLength;
@@ -598,5 +603,55 @@ namespace DSDecmp.Formats
             // more space and time (one for each position in the block) for only a potentially tiny increase in compression ratio.
         }
         #endregion
+
+        private int GetOptimalCompressionPartLength(int[] blocklengths)
+        {
+            // first determine the 8-block index of every block
+            int[] blockIndices = new int[blocklengths.Length];
+            int block8Idx = 0;
+            int insideBlockIdx = 0;
+            int totalCompLength = 0;
+            for (int i = 0; i < blocklengths.Length; )
+            {
+                if (insideBlockIdx == 8)
+                {
+                    block8Idx++;
+                    insideBlockIdx = 0;
+                    totalCompLength++;
+                }
+                blockIndices[i] = block8Idx;
+                insideBlockIdx++;
+
+                if (blocklengths[i] >= 3)
+                    totalCompLength += 2;
+                else
+                    totalCompLength++;
+                i += blocklengths[i];
+            }
+
+            int[] actualRestCompLengths = new int[blocklengths.Length];
+            block8Idx = 0;
+            insideBlockIdx = 0;
+            for (int i = 0; i < blocklengths.Length; )
+            {
+                if (insideBlockIdx == 8)
+                {
+                    block8Idx++;
+                    insideBlockIdx = 0;
+                    totalCompLength--;
+                }
+                if (blocklengths[i] >= 3)
+                    totalCompLength -= 2;
+                else
+                    totalCompLength--;
+                actualRestCompLengths[i] = totalCompLength;
+                i += blocklengths[i];
+                insideBlockIdx++;
+
+                if (totalCompLength > (blocklengths.Length - i))
+                    return i;
+            }
+            return blocklengths.Length;
+        }
     }
 }

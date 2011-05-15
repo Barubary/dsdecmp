@@ -33,6 +33,18 @@ namespace DSDecmp.Utils
             this.itemCount++;
         }
 
+        public TValue Peek(out TPrio priority)
+        {
+            if (this.itemCount == 0)
+                throw new IndexOutOfRangeException();
+            foreach (KeyValuePair<TPrio, LinkedList<TValue>> kvp in this.items)
+            {
+                priority = kvp.Key;
+                return kvp.Value.First.Value;
+            }
+            throw new IndexOutOfRangeException();
+        }
+
         public TValue Dequeue(out TPrio priority)
         {
             if (this.itemCount == 0)

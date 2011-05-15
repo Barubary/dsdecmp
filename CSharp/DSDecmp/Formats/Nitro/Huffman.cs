@@ -35,6 +35,7 @@ namespace DSDecmp.Formats.Nitro
             return base.Supports(stream, inLength);
         }
 
+        #region Decompression method
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region GBATEK format specification
@@ -139,7 +140,7 @@ namespace DSDecmp.Formats.Nitro
                     }
                     // get the next bit
                     bitsLeft--;
-                    bool nextIsOne = (data & (1 << bitsLeft)) > 0;
+                    bool nextIsOne = (data & (1 << bitsLeft)) != 0;
                     // go to the next node, the direction of the child depending on the value of the current/next bit
                     currentNode = nextIsOne ? currentNode.Child1 : currentNode.Child0;
                 }
@@ -178,6 +179,8 @@ namespace DSDecmp.Formats.Nitro
                 }
                 #endregion
 
+                outstream.Flush();
+
                 // make sure to start over next round
                 currentNode = rootNode;
             }
@@ -190,24 +193,190 @@ namespace DSDecmp.Formats.Nitro
 
             if (readBytes < inLength)
             {
-                // the input may be 4-byte aligned.
-                if ((readBytes ^ (readBytes & 3)) + 4 < inLength)
-                    throw new TooMuchInputException(readBytes, inLength);
+                throw new TooMuchInputException(readBytes, inLength);
             }
 
             return decompressedSize;
         }
+        #endregion
 
         public override int Compress(Stream instream, long inLength, Stream outstream)
         {
             switch (CompressBlockSize)
             {
+                case BlockSize.FOURBIT:
+                    return Compress4(instream, inLength, outstream);
                 case BlockSize.EIGHTBIT:
                     return Compress8(instream, inLength, outstream);
+                default:
+                    throw new Exception("Unhandled BlockSize " + CompressBlockSize);
             }
-            return 0;
         }
 
+        #region 4-bit block size Compression method
+        /// <summary>
+        /// Applies Huffman compression with a datablock size of 4 bits.
+        /// </summary>
+        /// <param name="instream">The stream to compress.</param>
+        /// <param name="inLength">The length of the input stream.</param>
+        /// <param name="outstream">The stream to write the decompressed data to.</param>
+        /// <returns>The size of the decompressed data.</returns>
+        private int Compress4(Stream instream, long inLength, Stream outstream)
+        {
+            if (inLength > 0xFFFFFF)
+                throw new InputTooLargeException();
+
+            // cache the input, as we need to build a frequency table
+            byte[] inputData = new byte[inLength];
+            instream.Read(inputData, 0, (int)inLength);
+
+            // build that frequency table.
+            int[] frequencies = new int[0x10];
+            for (int i = 0; i < inLength; i++)
+            {
+                frequencies[inputData[i] & 0xF]++;
+                frequencies[(inputData[i] >> 4) & 0xF]++;
+            }
+
+            #region Build the Huffman tree
+
+            SimpleReversedPrioQueue<int, HuffTreeNode> leafQueue = new SimpleReversedPrioQueue<int, HuffTreeNode>();
+            SimpleReversedPrioQueue<int, HuffTreeNode> nodeQueue = new SimpleReversedPrioQueue<int, HuffTreeNode>();
+            int nodeCount = 0;
+            // make all leaf nodes, and put them in the leaf queue. Also save them for later use.
+            HuffTreeNode[] leaves = new HuffTreeNode[0x10];
+            for (int i = 0; i < 0x10; i++)
+            {
+                // there is no need to store leaves that are not used
+                if (frequencies[i] == 0)
+                    continue;
+                HuffTreeNode node = new HuffTreeNode((byte)i, true, null, null);
+                leaves[i] = node;
+                leafQueue.Enqueue(frequencies[i], node);
+                nodeCount++;
+            }
+
+            while (leafQueue.Count + nodeQueue.Count > 1)
+            {
+                // get the two nodes with the lowest priority.
+                HuffTreeNode one = null, two = null;
+                int onePrio, twoPrio;
+                one = GetLowest(leafQueue, nodeQueue, out onePrio);
+                two = GetLowest(leafQueue, nodeQueue, out twoPrio);
+
+                // give those two a common parent, and put that node in the node queue
+                HuffTreeNode newNode = new HuffTreeNode(0, false, one, two);
+                nodeQueue.Enqueue(onePrio + twoPrio, newNode);
+                nodeCount++;
+            }
+            int rootPrio;
+            HuffTreeNode root = nodeQueue.Dequeue(out rootPrio);
+            // set the depth of all nodes in the tree, such that we know for each leaf how long
+            // its codeword is.
+            root.Depth = 0;
+
+            #endregion
+
+            // now that we have a tree, we can write that tree and follow with the data.
+
+            // write the compression header first
+            outstream.WriteByte((byte)BlockSize.FOURBIT); // this is block size 4 only
+            outstream.WriteByte((byte)(inLength & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
+
+            int compressedLength = 4;
+
+            #region write the tree
+
+            outstream.WriteByte((byte)((nodeCount - 1) / 2));
+            compressedLength++;
+
+            // use a breadth-first traversal to store the tree, such that we do not need to store/calculate the side of each sub-tree.
+            LinkedList<HuffTreeNode> printQueue = new LinkedList<HuffTreeNode>();
+            printQueue.AddLast(root);
+            while (printQueue.Count > 0)
+            {
+                HuffTreeNode node = printQueue.First.Value;
+                printQueue.RemoveFirst();
+                if (node.IsData)
+                {
+                    outstream.WriteByte(node.Data);
+                }
+                else
+                {
+                    // bits 0-5: 'offset' = # nodes in queue left
+                    // bit 6: node1 end flag
+                    // bit 7: node0 end flag
+                    byte data = (byte)(printQueue.Count / 2);
+                    data = (byte)(data & 0x3F);
+                    if (node.Child0.IsData)
+                        data |= 0x80;
+                    if (node.Child1.IsData)
+                        data |= 0x40;
+                    outstream.WriteByte(data);
+
+                    printQueue.AddLast(node.Child0);
+                    printQueue.AddLast(node.Child1);
+                }
+                compressedLength++;
+            }
+
+            #endregion
+
+            #region write the data
+
+            // the codewords are stored in blocks of 32 bits
+            uint datablock = 0;
+            byte bitsLeftToWrite = 32;
+
+            for (int i = 0; i < inLength; i++)
+            {
+                byte data = inputData[i];
+
+                for (int j = 0; j < 2; j++)
+                {
+                    HuffTreeNode node = leaves[(data >> (4 - j * 4)) & 0xF];
+                    // the depth of the node is the length of the codeword required to encode the byte
+                    int depth = node.Depth;
+                    bool[] path = new bool[depth];
+                    for (int d = 0; d < depth; d++)
+                    {
+                        path[depth - d - 1] = node.IsChild1;
+                        node = node.Parent;
+                    }
+                    for (int d = 0; d < depth; d++)
+                    {
+                        if (bitsLeftToWrite == 0)
+                        {
+                            outstream.Write(IOUtils.FromNDSu32(datablock), 0, 4);
+                            compressedLength += 4;
+                            datablock = 0;
+                            bitsLeftToWrite = 32;
+                        }
+                        bitsLeftToWrite--;
+                        if (path[d])
+                            datablock |= (uint)(1 << bitsLeftToWrite);
+                        // no need to OR the buffer with 0 if it is child0
+                    }
+
+                }
+            }
+
+            // write the partly filled data block as well
+            if (bitsLeftToWrite != 32)
+            {
+                outstream.Write(IOUtils.FromNDSu32(datablock), 0, 4);
+                compressedLength += 4;
+            }
+
+            #endregion
+
+            return compressedLength;
+        }
+        #endregion
+
+        #region 8-bit block size Compression method
         /// <summary>
         /// Applies Huffman compression with a datablock size of 8 bits.
         /// </summary>
@@ -229,10 +398,12 @@ namespace DSDecmp.Formats.Nitro
             for (int i = 0; i < inLength; i++)
                 frequencies[inputData[i]]++;
 
-            // build a Huffman tree from that frequency table
-            SimpleReversedPrioQueue<int, HuffTreeNode> prioQueue = new SimpleReversedPrioQueue<int, HuffTreeNode>();
+            #region Build the Huffman tree
 
-            // make all leaf nodes, and put them in the queue. Also save them for later use.
+            SimpleReversedPrioQueue<int, HuffTreeNode> leafQueue = new SimpleReversedPrioQueue<int, HuffTreeNode>();
+            SimpleReversedPrioQueue<int, HuffTreeNode> nodeQueue = new SimpleReversedPrioQueue<int, HuffTreeNode>();
+            int nodeCount = 0;
+            // make all leaf nodes, and put them in the leaf queue. Also save them for later use.
             HuffTreeNode[] leaves = new HuffTreeNode[0x100];
             for (int i = 0; i < 0x100; i++)
             {
@@ -241,29 +412,147 @@ namespace DSDecmp.Formats.Nitro
                     continue;
                 HuffTreeNode node = new HuffTreeNode((byte)i, true, null, null);
                 leaves[i] = node;
-                prioQueue.Enqueue(frequencies[i], node);
+                leafQueue.Enqueue(frequencies[i], node);
+                nodeCount++;
             }
-            // combine the two nodes with the lowest total priority until
-            // there is only one left (the root node).
-            while (prioQueue.Count > 1)
+
+            while (leafQueue.Count + nodeQueue.Count > 1)
             {
-                int prio0, prio1;
-                HuffTreeNode node0 = prioQueue.Dequeue(out prio0);
-                HuffTreeNode node1 = prioQueue.Dequeue(out prio1);
-                HuffTreeNode newNode = new HuffTreeNode(0, false, node0, node1);
-                prioQueue.Enqueue(prio0 + prio1, newNode);
+                // get the two nodes with the lowest priority.
+                HuffTreeNode one = null, two = null;
+                int onePrio, twoPrio;
+                one = GetLowest(leafQueue, nodeQueue, out onePrio);
+                two = GetLowest(leafQueue, nodeQueue, out twoPrio);
+
+                // give those two a common parent, and put that node in the node queue
+                HuffTreeNode newNode = new HuffTreeNode(0, false, one, two);
+                nodeQueue.Enqueue(onePrio + twoPrio, newNode);
+                nodeCount++;
             }
             int rootPrio;
-            HuffTreeNode root = prioQueue.Dequeue(out rootPrio);
+            HuffTreeNode root = nodeQueue.Dequeue(out rootPrio);
             // set the depth of all nodes in the tree, such that we know for each leaf how long
             // its codeword is.
             root.Depth = 0;
 
+            #endregion
+
             // now that we have a tree, we can write that tree and follow with the data.
 
-            return 0;
-        }
+            // write the compression header first
+            outstream.WriteByte((byte)BlockSize.EIGHTBIT); // this is block size 8 only
+            outstream.WriteByte((byte)(inLength & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
 
+            int compressedLength = 4;
+
+            #region write the tree
+
+            outstream.WriteByte((byte)((nodeCount - 1) / 2));
+            compressedLength++;
+
+            // use a breadth-first traversal to store the tree, such that we do not need to store/calculate the side of each sub-tree.
+            LinkedList<HuffTreeNode> printQueue = new LinkedList<HuffTreeNode>();
+            printQueue.AddLast(root);
+            while (printQueue.Count > 0)
+            {
+                HuffTreeNode node = printQueue.First.Value;
+                printQueue.RemoveFirst();
+                if (node.IsData)
+                {
+                    outstream.WriteByte(node.Data);
+                }
+                else
+                {
+                    // bits 0-5: 'offset' = # nodes in queue left
+                    // bit 6: node1 end flag
+                    // bit 7: node0 end flag
+                    byte data = (byte)(printQueue.Count / 2);
+                    data = (byte)(data & 0x3F);
+                    if (node.Child0.IsData)
+                        data |= 0x80;
+                    if (node.Child1.IsData)
+                        data |= 0x40;
+                    outstream.WriteByte(data);
+
+                    printQueue.AddLast(node.Child0);
+                    printQueue.AddLast(node.Child1);
+                }
+                compressedLength++;
+            }
+
+            #endregion
+
+            #region write the data
+
+            // the codewords are stored in blocks of 32 bits
+            uint datablock = 0;
+            byte bitsLeftToWrite = 32;
+
+            for (int i = 0; i < inLength; i++)
+            {
+                byte data = inputData[i];
+                HuffTreeNode node = leaves[data];
+                // the depth of the node is the length of the codeword required to encode the byte
+                int depth = node.Depth;
+                bool[] path = new bool[depth];
+                for (int d = 0; d < depth; d++)
+                {
+                    path[depth - d - 1] = node.IsChild1;
+                    node = node.Parent;
+                }
+                for (int d = 0; d < depth; d++)
+                {
+                    if (bitsLeftToWrite == 0)
+                    {
+                        outstream.Write(IOUtils.FromNDSu32(datablock), 0, 4);
+                        compressedLength += 4;
+                        datablock = 0;
+                        bitsLeftToWrite = 32;
+                    }
+                    bitsLeftToWrite--;
+                    if (path[d])
+                        datablock |= (uint)(1 << bitsLeftToWrite);
+                    // no need to OR the buffer with 0 if it is child0
+                }
+            }
+
+            // write the partly filled data block as well
+            if (bitsLeftToWrite != 32)
+            {
+                outstream.Write(IOUtils.FromNDSu32(datablock), 0, 4);
+                compressedLength += 4;
+            }
+
+            #endregion
+
+            return compressedLength;
+        }
+        #endregion
+
+        /// <summary>
+        /// Gets the tree node with the lowest priority (frequency) from the leaf and node queues.
+        /// If the priority is the same for both head items in the queues, the node from the leaf queue is picked.
+        /// </summary>
+        private HuffTreeNode GetLowest(SimpleReversedPrioQueue<int, HuffTreeNode> leafQueue, SimpleReversedPrioQueue<int, HuffTreeNode> nodeQueue, out int prio)
+        {
+            if (leafQueue.Count == 0)
+                return nodeQueue.Dequeue(out prio);
+            else if (nodeQueue.Count == 0)
+                return leafQueue.Dequeue(out prio);
+            else
+            {
+                int leafPrio, nodePrio;
+                leafQueue.Peek(out leafPrio);
+                nodeQueue.Peek(out nodePrio);
+                // pick a node from the leaf queue when the priorities are equal.
+                if (leafPrio <= nodePrio)
+                    return leafQueue.Dequeue(out prio);
+                else
+                    return nodeQueue.Dequeue(out prio);
+            }
+        }
 
         #region Utility class: HuffTreeNode
         /// <summary>
@@ -321,6 +610,14 @@ namespace DSDecmp.Formats.Nitro
             /// The parent node of this node.
             /// </summary>
             public HuffTreeNode Parent { get; private set; }
+            /// <summary>
+            /// Determines if this is the Child0 of the parent node. Assumes there is a parent.
+            /// </summary>
+            public bool IsChild0 { get { return this.Parent.child0 == this; } }
+            /// <summary>
+            /// Determines if this is the Child1 of the parent node. Assumes there is a parent.
+            /// </summary>
+            public bool IsChild1 { get { return this.Parent.child1 == this; } }
 
             private int depth;
             /// <summary>
@@ -356,10 +653,11 @@ namespace DSDecmp.Formats.Nitro
                 this.child0 = child0;
                 this.child1 = child1;
                 this.isFilled = true;
-                if (child0 != null)
+                if (!isData)
+                {
                     this.child0.Parent = this;
-                if (child1 != null)
                     this.child1.Parent = this;
+                }
             }
 
             /// <summary>

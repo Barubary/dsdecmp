@@ -23,5 +23,19 @@ namespace DSDecmp
                         | (buffer[offset + 2] << 16)
                         | (buffer[offset + 3] << 24));
         }
+
+        /// <summary>
+        /// Converts a u32 value into a sequence of bytes that would make ToNDSu32 return
+        /// the given input value.
+        /// </summary>
+        public static byte[] FromNDSu32(uint value)
+        {
+            return new byte[] {
+                (byte)(value & 0xFF),
+                (byte)((value >> 8) & 0xFF),
+                (byte)((value >> 16) & 0xFF),
+                (byte)((value >> 24) & 0xFF)
+            };
+        }
     }
 }

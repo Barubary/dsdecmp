@@ -59,7 +59,7 @@ namespace DSDecmp.Formats
 
             uint extraSize = IOUtils.ToNDSu32(header, header.Length - 4);
             if (extraSize == 0)
-                return true;
+                return false; // do not decompress whenevr the last 4 bytes are 0; too many files have that.
             // if the extrasize is nonzero, the minimum header length is 8  bytes
             if (header.Length < 8)
                 return false;

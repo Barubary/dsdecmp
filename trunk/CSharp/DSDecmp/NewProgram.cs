@@ -144,21 +144,21 @@ namespace DSDecmp
             Console.WriteLine("Usage:\tDSDecmp (-c FORMAT FORMATOPT*) (-ge) input (output)");
             Console.WriteLine();
             Console.WriteLine("Without the -c modifier, DSDecmp will decompress the input file to the output");
-            Console.WriteLine("file. If the output file is a directory, the output file will be placed in that");
-            Console.WriteLine("directory with the same filename as the original file. The extension will be");
-            Console.WriteLine("appended with a format-specific extension.");
-            Console.WriteLine("If the output is a nonexistent file or directory, it is assumed to be a");
-            Console.WriteLine("directory iff there is no '.' in the name.");
+            Console.WriteLine(" file. If the output file is a directory, the output file will be placed in");
+            Console.WriteLine(" that directory with the same filename as the original file. The extension will");
+            Console.WriteLine(" be appended with a format-specific extension.");
             Console.WriteLine("The input can also be a directory. In that case, it would be the same as");
-            Console.WriteLine("calling DSDecmp for every non-directory in the given directory with the same");
-            Console.WriteLine("options, with one exception; the output is by default the input folder, but");
-            Console.WriteLine("with '_dec' appended.");
+            Console.WriteLine(" calling DSDecmp for every non-directory in the given directory with the same");
+            Console.WriteLine(" options, with one exception; the output is by default the input folder, but");
+            Console.WriteLine(" with '_dec' appended.");
+            Console.WriteLine("If the output does not exist, it is assumed to be the same type as the input");
+            Console.WriteLine(" (file or directory).");
             Console.WriteLine("If there is no output file given, it is assumed to be the directory of the");
-            Console.WriteLine("input file.");
+            Console.WriteLine(" input file.");
             Console.WriteLine();
             Console.WriteLine("With the -ge option, instead of a format-specific extension, the extension");
-            Console.WriteLine("will be guessed from the first four bytes of the output file. Only non-accented");
-            Console.WriteLine("letters or numbers are considered in those four bytes.");
+            Console.WriteLine(" will be guessed from the first four bytes of the output file. Only");
+            Console.WriteLine(" non-accented letters or numbers are considered in those four bytes.");
             Console.WriteLine();
             Console.WriteLine("With the -c option, the input is compressed instead of decompressed. FORMAT");
             Console.WriteLine("indicates the desired compression format, and can be one of:");
@@ -185,13 +185,13 @@ namespace DSDecmp
             Console.WriteLine("            the lz10, lz11 and lzovl algorithms.");
             Console.WriteLine();
             Console.WriteLine("If the input is a directory when the -c option, the default output directory");
-            Console.WriteLine("is the input directory appended with '_cmp'.");
+            Console.WriteLine(" is the input directory appended with '_cmp'.");
             Console.WriteLine();
             Console.WriteLine("Supplying the -ge modifier together with the -c modifier, the extension of the");
-            Console.WriteLine("compressed files will be extended with the 'FORMAT' value that always results");
-            Console.WriteLine("in that particualr format (so 'lz11', 'rle', etc).");
+            Console.WriteLine(" compressed files will be extended with the 'FORMAT' value that always results");
+            Console.WriteLine(" in that particualr format (so 'lz11', 'rle', etc).");
             Console.WriteLine("If the -ge modifier is not present, the extension of compressed files will be");
-            Console.WriteLine("extended with .cdat");
+            Console.WriteLine(" extended with .cdat");
 
         }
 
@@ -210,11 +210,12 @@ namespace DSDecmp
             {
                 if (Directory.Exists(input))
                 {
-                    if (!Directory.Exists(input + "_cmp"))
-                        Directory.CreateDirectory(input + "_cmp");
+                    string newDir = Path.GetFullPath(input) + "_cmp";
+                    if (!Directory.Exists(newDir))
+                        Directory.CreateDirectory(newDir);
                     foreach (string file in Directory.GetFiles(input))
                     {
-                        Compress(file, input + "_cmp", format, guessExtension);
+                        Compress(file, newDir, format, guessExtension);
                     }
                     return;
                 }
@@ -246,15 +247,16 @@ namespace DSDecmp
             if (outsize < 0)
                 return;
 
+            bool mustAppendExt = !Directory.Exists(output) && !File.Exists(output);
             if (Directory.Exists(output))
             {
                 output = CombinePaths(output, Path.GetFileName(input));
             }
-            if (Path.GetExtension(output) == ".dat")
+            if (mustAppendExt && Path.GetExtension(output) == ".dat")
                 output = RemoveExtension(output);
             if (guessExtension)
                 output += "." + compressedFormat.ToString().ToLower();
-            else
+            else if (mustAppendExt)
                 output += ".cdat";
 
             using (FileStream outStream = File.Create(output))
@@ -399,11 +401,12 @@ namespace DSDecmp
             {
                 if (Directory.Exists(input))
                 {
-                    if (!Directory.Exists(input + "_dec"))
-                        Directory.CreateDirectory(input + "_dec");
+                    string newDir = Path.GetFullPath(input) + "_dec";
+                    if (!Directory.Exists(newDir))
+                        Directory.CreateDirectory(newDir);
                     foreach (string file in Directory.GetFiles(input))
                     {
-                        Decompress(file, input + "_dec", guessExtension);
+                        Decompress(file, newDir, guessExtension);
                     }
                     return;
                 }
@@ -431,7 +434,6 @@ namespace DSDecmp
                 }
                 return;
             }
-
 
             byte[] inData;
             using (FileStream inStream = File.OpenRead(input))
@@ -462,24 +464,29 @@ namespace DSDecmp
                 return;
             }
 
+            bool mustAppendExt = !Directory.Exists(output) && !File.Exists(output);
+
             if (Directory.Exists(output))
             {
                 output = CombinePaths(output, Path.GetFileName(input));
             }
 
-            switch (Path.GetExtension(output))
-            {
-                case ".cdat":
-                case ".lz10":
-                case ".lz11":
-                case ".lzovl":
-                case ".rle":
-                case ".huff4":
-                case ".huff8":
-                    output = RemoveExtension(output);
-                    break;
-            }
             byte[] outData = decompressedData.ToArray();
+            if (mustAppendExt)
+            {
+                switch (Path.GetExtension(output))
+                {
+                    case ".cdat":
+                    case ".lz10":
+                    case ".lz11":
+                    case ".lzovl":
+                    case ".rle":
+                    case ".huff4":
+                    case ".huff8":
+                        output = RemoveExtension(output);
+                        break;
+                }
+            }
             if (guessExtension)
             {
                 string ext = "";
@@ -497,13 +504,13 @@ namespace DSDecmp
                 else
                     output += ".dat";
             }
-            else
+            else if(mustAppendExt)
                 output += ".dat";
 
             using (FileStream outStream = File.Create(output))
             {
                 outStream.Write(outData, 0, outData.Length);
-                Console.WriteLine(usedFormat.ToString() + "-decompressed " + input);
+                Console.WriteLine(usedFormat.ToString() + "-decompressed " + input + " to " + output);
             }
 
         }

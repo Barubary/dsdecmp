@@ -164,7 +164,7 @@ namespace DSDecmp
             Console.WriteLine("indicates the desired compression format, and can be one of:");
             Console.WriteLine(" --- formats built-in in the NDS ---");
             Console.WriteLine("    lz10  - 'default' LZ-compression format.");
-            Console.WriteLine("    lz11  - LZ-compression format better suited for files with long repetitions.");
+            Console.WriteLine("    lz11  - LZ-compression format better suited for files with long repetitions");
             Console.WriteLine("    lzovl - LZ-compression used in 'overlay files'.");
             Console.WriteLine("    rle   - Run-Length Encoding 'compression'.");
             Console.WriteLine("    huff4 - Huffman compression with 4-bit sized data blocks.");

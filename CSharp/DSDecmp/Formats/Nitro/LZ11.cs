@@ -74,13 +74,13 @@ namespace DSDecmp.Formats.Nitro
                             + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
-            int decompressedSize = base.Bytes2Size(sizeBytes);
+            int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);
             readBytes += 4;
             if (decompressedSize == 0)
             {
                 sizeBytes = new byte[4];
                 instream.Read(sizeBytes, 0, 4);
-                decompressedSize = base.Bytes2Size(sizeBytes);
+                decompressedSize = IOUtils.ToNDSs32(sizeBytes, 0);
                 readBytes += 4;
             }
 

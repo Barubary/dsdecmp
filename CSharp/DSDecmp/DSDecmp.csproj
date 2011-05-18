@@ -47,6 +47,7 @@
     <Compile Include="Exceptions\StreamTooShortException.cs" />
     <Compile Include="Exceptions\TooMuchInputException.cs" />
     <Compile Include="Formats\CompressionFormat.cs" />
+    <Compile Include="Formats\GameSpecific\GoldenSunDD.cs" />
     <Compile Include="Formats\Nitro\Huffman.cs" />
     <Compile Include="Formats\Nitro\LZ10.cs" />
     <Compile Include="Formats\Nitro\LZ11.cs" />

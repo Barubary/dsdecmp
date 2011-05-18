@@ -35,7 +35,7 @@ namespace DSDecmp.Formats.Nitro
         public override long Decompress(Stream instream, long inLength,
                                             Stream outstream)
         {
-            #region format definition form GBATEK/NDSTEK
+            #region format definition from GBATEK/NDSTEK
             /*  Data header (32bit)
                   Bit 0-3   Reserved
                   Bit 4-7   Compressed type (must be 1 for LZ77)
@@ -60,13 +60,13 @@ namespace DSDecmp.Formats.Nitro
                             + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
-            int decompressedSize = base.Bytes2Size(sizeBytes);
+            int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);
             readBytes += 4;
             if (decompressedSize == 0)
             {
                 sizeBytes = new byte[4];
                 instream.Read(sizeBytes, 0, 4);
-                decompressedSize = base.Bytes2Size(sizeBytes);
+                decompressedSize = IOUtils.ToNDSs32(sizeBytes, 0);
                 readBytes += 4;
             }
 
@@ -130,7 +130,7 @@ namespace DSDecmp.Formats.Nitro
                     if (disp > currentOutSize)
                         throw new InvalidDataException("Cannot go back more than already written. "
                                 + "DISP = 0x" + disp.ToString("X") + ", #written bytes = 0x" + currentOutSize.ToString("X")
-                                + " at 0x" + instream.Position.ToString("X"));
+                                + " at 0x" + (instream.Position - 2).ToString("X"));
                     #endregion
 
                     int bufIdx = bufferOffset + bufferLength - disp;

@@ -32,19 +32,6 @@ namespace DSDecmp.Formats.Nitro
             this.magicByte = magicByte;
         }
 
-        /// <summary>
-        /// Converts an array of (at least) 3 bytes into an integer, using the format used
-        /// in Nitro compression formats to store the decompressed size.
-        /// If the size is not 3, the fourth byte will also be included.
-        /// </summary>
-        protected int Bytes2Size(byte[] bytes)
-        {
-            if (bytes.Length == 3)
-                return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16);
-            else
-                return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
-        }
-
         public override bool Supports(System.IO.Stream stream, long inLength)
         {
             long startPosition = stream.Position;
@@ -58,12 +45,12 @@ namespace DSDecmp.Formats.Nitro
                     return true;
                 byte[] sizeBytes = new byte[3];
                 stream.Read(sizeBytes, 0, 3);
-                int outSize = this.Bytes2Size(sizeBytes);
+                int outSize = IOUtils.ToNDSu24(sizeBytes, 0);
                 if (outSize == 0)
                 {
                     sizeBytes = new byte[4];
                     stream.Read(sizeBytes, 0, 4);
-                    outSize = this.Bytes2Size(sizeBytes);
+                    outSize = (int)IOUtils.ToNDSu32(sizeBytes, 0);
                 }
                 return outSize <= MaxPlaintextSize;
             }

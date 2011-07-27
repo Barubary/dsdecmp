@@ -71,7 +71,7 @@ namespace DSDecmp.Formats
             int compressedLen = header[header.Length - 6] << 16
                                 | header[header.Length - 7] << 8
                                 | header[header.Length - 8];
-            if (compressedLen >= inLength - headerLen)
+            if (compressedLen >= inLength - headerLen && compressedLen != inLength)
                 return false;
 
             // verify that the rest of the header is filled with 0xFF
@@ -113,6 +113,7 @@ namespace DSDecmp.Formats
              * u32 extraSize; // decompressed data size = file length (including header) + this value
              * u8 headerSize;
              * u24 compressedLength; // can be less than file size (w/o header). If so, the rest of the file is uncompressed.
+             *                       // may also be the file size
              * u8[headerSize-8] padding; // 0xFF-s
              * 
              * 0x10-like-compressed data follows (without the usual 4-byte header).
@@ -179,6 +180,10 @@ namespace DSDecmp.Formats
                 instream.Position -= 4;
                 instream.Read(buffer, 0, 3);
                 int compressedSize = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16);
+
+                // the compressed size sometimes is the file size.
+                if (compressedSize + headerSize >= inLength)
+                    compressedSize = (int)(inLength - headerSize);
 
                 #region copy the non-compressed data
 

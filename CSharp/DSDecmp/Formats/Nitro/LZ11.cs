@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
-using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -10,8 +9,27 @@ namespace DSDecmp.Formats.Nitro
     /// Compressor and decompressor for the LZ-0x11 format used in many of the games for the
     /// newer Nintendo consoles and handhelds.
     /// </summary>
-    public class LZ11 : NitroCFormat
+    public sealed class LZ11 : NitroCFormat
     {
+        public override string ShortFormatString
+        {
+            get { return "LZ-11"; }
+        }
+
+        public override string Description
+        {
+            get { return "Variant of the LZ-0x10 format to support longer repetitions."; }
+        }
+
+        public override string CompressionFlag
+        {
+            get { return "lz11"; }
+        }
+
+        public override bool SupportsCompression
+        {
+            get { return true; }
+        }
 
         private static bool lookAhead = false;
         /// <summary>
@@ -25,6 +43,18 @@ namespace DSDecmp.Formats.Nitro
         }
 
         public LZ11() : base(0x11) { }
+
+        public override int ParseCompressionOptions(string[] args)
+        {
+            LookAhead = false;
+            if (args.Length > 0)
+                if (args[0] == "-opt")
+                {
+                    LookAhead = true;
+                    return 1;
+                }
+            return 0;
+        }
 
         #region Decompression method
         public override long Decompress(Stream instream, long inLength, Stream outstream)

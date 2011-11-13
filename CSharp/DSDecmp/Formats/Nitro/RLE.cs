@@ -9,8 +9,28 @@ namespace DSDecmp.Formats.Nitro
     /// Compressor and decompressor for the RLE format used in several of the games for the
     /// newer Nintendo consoles and handhelds.
     /// </summary>
-    public class RLE : NitroCFormat
+    public sealed class RLE : NitroCFormat
     {
+        public override string ShortFormatString
+        {
+            get { return "RLE"; }
+        }
+
+        public override string Description
+        {
+            get { return "Run-Length Encoding used in some modern Nintendo games."; }
+        }
+
+        public override string CompressionFlag
+        {
+            get { return "rle"; }
+        }
+
+        public override bool SupportsCompression
+        {
+            get { return true; }
+        }
+
         public RLE() : base(0x30) { }
 
         public override long Decompress(Stream instream, long inLength, Stream outstream)

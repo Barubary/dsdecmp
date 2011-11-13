@@ -4,6 +4,10 @@ using System.Text;
 
 namespace DSDecmp
 {
+    /// <summary>
+    /// An exception indication that the input has more data than required in order
+    /// to decompress it. This may indicate that more sub-files are present in the file.
+    /// </summary>
     public class TooMuchInputException : Exception
     {
         /// <summary>

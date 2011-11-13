@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
-using DSDecmp.Utils;
 
 namespace DSDecmp.Formats
 {
@@ -12,8 +11,28 @@ namespace DSDecmp.Formats
     /// Note that the last 12 bytes should not be included in the 'inLength' argument when
     /// decompressing arm9.bin. This is done automatically if a file is given instead of a stream.
     /// </summary>
-    public class LZOvl : CompressionFormat
+    public sealed class LZOvl : CompressionFormat
     {
+        public override string ShortFormatString
+        {
+            get { return "LZ-Ovl"; }
+        }
+
+        public override string Description
+        {
+            get { return "Reverse LZ format, mainly used in 'overlay' files of NDS games."; }
+        }
+
+        public override string CompressionFlag
+        {
+            get { return "lzovl"; }
+        }
+
+        public override bool SupportsCompression
+        {
+            get { return true; }
+        }
+
         private static bool lookAhead = false;
         /// <summary>
         /// Sets the flag that determines if 'look-ahead'/DP should be used when compressing
@@ -23,6 +42,17 @@ namespace DSDecmp.Formats
         public static bool LookAhead
         {
             set { lookAhead = value; }
+        }
+
+        public override int ParseCompressionOptions(string[] args)
+        {
+            if (args.Length > 0)
+                if (args[0] == "-opt")
+                {
+                    LookAhead = true;
+                    return 1;
+                }
+            return 0;
         }
 
         #region Method: Supports(string file)

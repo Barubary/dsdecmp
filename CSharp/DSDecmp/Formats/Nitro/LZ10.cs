@@ -2,16 +2,34 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
-using DSDecmp.Utils;
-
 namespace DSDecmp.Formats.Nitro
 {
     /// <summary>
     /// Compressor and decompressor for the LZ-0x10 format used in many of the games for the
     /// newer Nintendo consoles and handhelds.
     /// </summary>
-    public class LZ10 : NitroCFormat
+    public sealed class LZ10 : NitroCFormat
     {
+        public override string ShortFormatString
+        {
+            get { return "LZ-10"; }
+        }
+
+        public override string Description
+        {
+            get { return "Common LZ-type compression used in many post-GBC Nintendo games."; }
+        }
+
+        public override string CompressionFlag
+        {
+            get { return "lz10"; }
+        }
+
+        public override bool SupportsCompression
+        {
+            get { return true; }
+        }
+
         private static bool lookAhead = false;
         /// <summary>
         /// Sets the flag that determines if 'look-ahead'/DP should be used when compressing
@@ -24,6 +42,17 @@ namespace DSDecmp.Formats.Nitro
         }
 
         public LZ10() : base(0x10) { }
+
+        public override int ParseCompressionOptions(string[] args)
+        {
+            if (args.Length > 0)
+                if (args[0] == "-opt")
+                {
+                    LookAhead = true;
+                    return 1;
+                }
+            return 0;
+        }
 
         #region 'Original' Decompression method
         /// <summary>

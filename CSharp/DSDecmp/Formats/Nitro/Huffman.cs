@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
-using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -10,29 +9,24 @@ namespace DSDecmp.Formats.Nitro
     /// Compressor and decompressor for the Huffman format used in many of the games for the
     /// newer Nintendo consoles and handhelds.
     /// </summary>
-    public class Huffman : NitroCFormat
+    public abstract class Huffman : NitroCFormat
     {
         public enum BlockSize : byte { FOURBIT = 0x24, EIGHTBIT = 0x28 }
 
         /// <summary>
         /// Sets the block size used when using the Huffman format to compress.
         /// </summary>
-        public static BlockSize CompressBlockSize { get; set; }
+        public BlockSize CompressBlockSize { get; set; }
 
-        static Huffman()
+        public override bool SupportsCompression
         {
-            CompressBlockSize = BlockSize.EIGHTBIT;
+            get { return true; }
         }
 
-        public Huffman() : base(0) { }
-
-        public override bool Supports(System.IO.Stream stream, long inLength)
+        public Huffman(BlockSize blockSize)
+            : base((byte)blockSize)
         {
-            base.magicByte = (byte)BlockSize.FOURBIT;
-            if (base.Supports(stream, inLength))
-                return true;
-            base.magicByte = (byte)BlockSize.EIGHTBIT;
-            return base.Supports(stream, inLength);
+            this.CompressBlockSize = blockSize;
         }
 
         #region Decompression method
@@ -63,10 +57,7 @@ namespace DSDecmp.Formats.Nitro
             long readBytes = 0;
 
             byte type = (byte)instream.ReadByte();
-            BlockSize blockSize = BlockSize.FOURBIT;
-            if (type != (byte)blockSize)
-                blockSize = BlockSize.EIGHTBIT;
-            if (type != (byte)blockSize)
+            if (type != (byte)this.CompressBlockSize)
                 throw new InvalidDataException("The provided stream is not a valid Huffman "
                             + "compressed stream (invalid type 0x" + type.ToString("X") + "); unknown block size.");
             byte[] sizeBytes = new byte[3];
@@ -147,7 +138,7 @@ namespace DSDecmp.Formats.Nitro
                 #endregion
 
                 #region write the data in the current node (when possible)
-                switch (blockSize)
+                switch (this.CompressBlockSize)
                 {
                     case BlockSize.EIGHTBIT:
                         {
@@ -175,7 +166,7 @@ namespace DSDecmp.Formats.Nitro
                             break;
                         }
                     default:
-                        throw new Exception("Unknown block size " + blockSize.ToString());
+                        throw new Exception("Unknown block size " + this.CompressBlockSize.ToString());
                 }
                 #endregion
 
@@ -200,18 +191,265 @@ namespace DSDecmp.Formats.Nitro
         }
         #endregion
 
-        public override int Compress(Stream instream, long inLength, Stream outstream)
+        #region Utility method: GetLowest(leafQueue, nodeQueue, out prio)
+        /// <summary>
+        /// Gets the tree node with the lowest priority (frequency) from the leaf and node queues.
+        /// If the priority is the same for both head items in the queues, the node from the leaf queue is picked.
+        /// </summary>
+        protected HuffTreeNode GetLowest(SimpleReversedPrioQueue<int, HuffTreeNode> leafQueue, SimpleReversedPrioQueue<int, HuffTreeNode> nodeQueue, out int prio)
         {
-            switch (CompressBlockSize)
+            if (leafQueue.Count == 0)
+                return nodeQueue.Dequeue(out prio);
+            else if (nodeQueue.Count == 0)
+                return leafQueue.Dequeue(out prio);
+            else
             {
-                case BlockSize.FOURBIT:
-                    return Compress4(instream, inLength, outstream);
-                case BlockSize.EIGHTBIT:
-                    return Compress8(instream, inLength, outstream);
-                default:
-                    throw new Exception("Unhandled BlockSize " + CompressBlockSize);
+                int leafPrio, nodePrio;
+                leafQueue.Peek(out leafPrio);
+                nodeQueue.Peek(out nodePrio);
+                // pick a node from the leaf queue when the priorities are equal.
+                if (leafPrio <= nodePrio)
+                    return leafQueue.Dequeue(out prio);
+                else
+                    return nodeQueue.Dequeue(out prio);
             }
         }
+        #endregion
+
+        #region Utility class: HuffTreeNode
+        /// <summary>
+        /// A single node in a Huffman tree.
+        /// </summary>
+        public class HuffTreeNode
+        {
+            /// <summary>
+            /// The data contained in this node. May not mean anything when <code>isData == false</code>
+            /// </summary>
+            private byte data;
+            /// <summary>
+            /// A flag indicating if this node has been filled.
+            /// </summary>
+            private bool isFilled;
+            /// <summary>
+            /// The data contained in this node. May not mean anything when <code>isData == false</code>.
+            /// Throws a NullReferenceException when this node has not been defined (ie: reference was outside the
+            /// bounds of the tree definition)
+            /// </summary>
+            public byte Data
+            {
+                get
+                {
+                    if (!this.isFilled) throw new NullReferenceException("Reference to an undefined node in the huffman tree.");
+                    return this.data;
+                }
+            }
+            /// <summary>
+            /// A flag indicating if this node contains data. If not, this is not a leaf node.
+            /// </summary>
+            private bool isData;
+            /// <summary>
+            /// Returns true if this node represents data.
+            /// </summary>
+            public bool IsData { get { return this.isData; } }
+
+            /// <summary>
+            /// The child of this node at side 0
+            /// </summary>
+            private HuffTreeNode child0;
+            /// <summary>
+            /// The child of this node at side 0
+            /// </summary>
+            public HuffTreeNode Child0 { get { return this.child0; } }
+            /// <summary>
+            /// The child of this node at side 1
+            /// </summary>
+            private HuffTreeNode child1;
+            /// <summary>
+            /// The child of this node at side 1
+            /// </summary>
+            public HuffTreeNode Child1 { get { return this.child1; } }
+            /// <summary>
+            /// The parent node of this node.
+            /// </summary>
+            public HuffTreeNode Parent { get; private set; }
+            /// <summary>
+            /// Determines if this is the Child0 of the parent node. Assumes there is a parent.
+            /// </summary>
+            public bool IsChild0 { get { return this.Parent.child0 == this; } }
+            /// <summary>
+            /// Determines if this is the Child1 of the parent node. Assumes there is a parent.
+            /// </summary>
+            public bool IsChild1 { get { return this.Parent.child1 == this; } }
+
+            private int depth;
+            /// <summary>
+            /// Get or set the depth of this node. Will not be set automatically, but
+            /// will be set recursively (the depth of all child nodes will be updated when this is set).
+            /// </summary>
+            public int Depth
+            {
+                get { return this.depth; }
+                set
+                {
+                    this.depth = value;
+                    // recursively set the depth of the child nodes.
+                    if (!this.isData)
+                    {
+                        this.child0.Depth = this.depth + 1;
+                        this.child1.Depth = this.depth + 1;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Calculates the size of the sub-tree with this node as root.
+            /// </summary>
+            public int Size
+            {
+                get
+                {
+                    if (this.IsData)
+                        return 1;
+                    return 1 + this.child0.Size + this.child1.Size;
+                }
+            }
+
+            /// <summary>
+            /// Returns a seuqnce over the nodes of the sub-tree with this node as root in a pre-order fashion. (Root-Left-Right)
+            /// </summary>
+            public IEnumerable<HuffTreeNode> PreOrderTraversal
+            {
+                get
+                {
+                    yield return this;
+                    if (!this.IsData)
+                    {
+                        foreach (HuffTreeNode c in this.child0.PreOrderTraversal)
+                            yield return c;
+                        foreach (HuffTreeNode c in this.child1.PreOrderTraversal)
+                            yield return c;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Manually creates a new node for a huffman tree.
+            /// </summary>
+            /// <param name="data">The data for this node.</param>
+            /// <param name="isData">If this node represents data.</param>
+            /// <param name="child0">The child of this node on the 0 side.</param>
+            /// <param name="child1">The child of this node on the 1 side.</param>
+            public HuffTreeNode(byte data, bool isData, HuffTreeNode child0, HuffTreeNode child1)
+            {
+                this.data = data;
+                this.isData = isData;
+                this.child0 = child0;
+                this.child1 = child1;
+                this.isFilled = true;
+                if (!isData)
+                {
+                    this.child0.Parent = this;
+                    this.child1.Parent = this;
+                }
+            }
+
+            /// <summary>
+            /// Creates a new node in the Huffman tree.
+            /// </summary>
+            /// <param name="stream">The stream to read from. It is assumed that there is (at least)
+            /// one more byte available to read.</param>
+            /// <param name="isData">If this node is a data-node.</param>
+            /// <param name="relOffset">The offset of this node in the source data, relative to the start
+            /// of the compressed file.</param>
+            /// <param name="maxStreamPos">The indicated end of the huffman tree. If the stream is past
+            /// this position, the tree is invalid.</param>
+            public HuffTreeNode(Stream stream, bool isData, long relOffset, long maxStreamPos)
+            {
+                /*
+                 Tree Table (list of 8bit nodes, starting with the root node)
+                    Root Node and Non-Data-Child Nodes are:
+                    Bit0-5   Offset to next child node,
+                            Next child node0 is at (CurrentAddr AND NOT 1)+Offset*2+2
+                            Next child node1 is at (CurrentAddr AND NOT 1)+Offset*2+2+1
+                    Bit6     Node1 End Flag (1=Next child node is data)
+                    Bit7     Node0 End Flag (1=Next child node is data)
+                    Data nodes are (when End Flag was set in parent node):
+                    Bit0-7   Data (upper bits should be zero if Data Size is less than 8)
+                 */
+
+                if (stream.Position >= maxStreamPos)
+                {
+                    // this happens when part of the tree is unused.
+                    this.isFilled = false;
+                    return;
+                }
+                this.isFilled = true;
+                int readData = stream.ReadByte();
+                if (readData < 0)
+                    throw new StreamTooShortException();
+                this.data = (byte)readData;
+
+                this.isData = isData;
+
+                if (!this.isData)
+                {
+                    int offset = this.data & 0x3F;
+                    bool zeroIsData = (this.data & 0x80) > 0;
+                    bool oneIsData = (this.data & 0x40) > 0;
+
+                    // off AND NOT 1 == off XOR (off AND 1)
+                    long zeroRelOffset = (relOffset ^ (relOffset & 1)) + offset * 2 + 2;
+
+                    long currStreamPos = stream.Position;
+                    // position the stream right before the 0-node
+                    stream.Position += (zeroRelOffset - relOffset) - 1;
+                    // read the 0-node
+                    this.child0 = new HuffTreeNode(stream, zeroIsData, zeroRelOffset, maxStreamPos);
+                    this.child0.Parent = this;
+                    // the 1-node is directly behind the 0-node
+                    this.child1 = new HuffTreeNode(stream, oneIsData, zeroRelOffset + 1, maxStreamPos);
+                    this.child1.Parent = this;
+
+                    // reset the stream position to right behind this node's data
+                    stream.Position = currStreamPos;
+                }
+            }
+
+            public override string ToString()
+            {
+                if (this.isData)
+                {
+                    return "<" + this.data.ToString("X2") + ">";
+                }
+                else
+                {
+                    return "[" + this.child0.ToString() + "," + this.child1.ToString() + "]";
+                }
+            }
+
+        }
+        #endregion
+    }
+
+    public class Huffman4 : Huffman
+    {
+        public override string ShortFormatString
+        {
+            get { return "Huffman-4"; }
+        }
+
+        public override string Description
+        {
+            get { return "Huffman compression scheme using 4-bit datablocks."; }
+        }
+
+        public override string CompressionFlag
+        {
+            get { return "huff4"; }
+        }
+
+        public Huffman4()
+            : base(BlockSize.FOURBIT) { }
 
         #region 4-bit block size Compression method
         /// <summary>
@@ -221,7 +459,7 @@ namespace DSDecmp.Formats.Nitro
         /// <param name="inLength">The length of the input stream.</param>
         /// <param name="outstream">The stream to write the decompressed data to.</param>
         /// <returns>The size of the decompressed data.</returns>
-        private int Compress4(Stream instream, long inLength, Stream outstream)
+        public override int Compress(Stream instream, long inLength, Stream outstream)
         {
             if (inLength > 0xFFFFFF)
                 throw new InputTooLargeException();
@@ -375,6 +613,27 @@ namespace DSDecmp.Formats.Nitro
             return compressedLength;
         }
         #endregion
+    }
+
+    public class Huffman8 : Huffman
+    {
+        public override string ShortFormatString
+        {
+            get { return "Huffman-8"; }
+        }
+
+        public override string Description
+        {
+            get { return "Huffman compression scheme using 8-bit datablocks."; }
+        }
+
+        public override string CompressionFlag
+        {
+            get { return "huff8"; }
+        }
+
+        public Huffman8()
+            : base(BlockSize.EIGHTBIT) { }
 
         #region 8-bit block size Compression method
         /// <summary>
@@ -384,7 +643,7 @@ namespace DSDecmp.Formats.Nitro
         /// <param name="inLength">The length of the input stream.</param>
         /// <param name="outstream">The stream to write the decompressed data to.</param>
         /// <returns>The size of the decompressed data.</returns>
-        private int Compress8(Stream instream, long inLength, Stream outstream)
+        public override int Compress(Stream instream, long inLength, Stream outstream)
         {
             if (inLength > 0xFFFFFF)
                 throw new InputTooLargeException();
@@ -452,9 +711,33 @@ namespace DSDecmp.Formats.Nitro
             outstream.WriteByte((byte)((nodeCount - 1) / 2));
             compressedLength++;
 
-            // use a breadth-first traversal to store the tree, such that we do not need to store/calculate the side of each sub-tree.
-            LinkedList<HuffTreeNode> printQueue = new LinkedList<HuffTreeNode>();
-            printQueue.AddLast(root);
+            // use a breadth-first traversal to store the tree, such that we do not need to store/calculate the size of each sub-tree.
+            // NO! BF results in an ordering that may overflow the offset field. use pre-order instead (Self-Left-Right)
+            foreach (HuffTreeNode node in root.PreOrderTraversal)
+            {
+                if (node.Parent == null) // root node.
+                {
+                    // bits 0-5: 'offset' = # nodes in queue left
+                    // bit 6: node1 end flag
+                    // bit 7: node0 end flag
+                    byte data = 0;
+                    if (node.Child0.IsData)
+                        data |= 0x80;
+                    if (node.Child1.IsData)
+                        data |= 0x40;
+                    outstream.WriteByte(data);
+                }
+                if (node.IsData)
+                    continue;
+                else
+                {
+                    // bits 0-5: 'offset': if this is left node, 0. if right node
+                    // bit 6: node1 end flag
+                    // bit 7: node0 end flag
+                }
+                compressedLength++;
+            }
+            /*
             while (printQueue.Count > 0)
             {
                 HuffTreeNode node = printQueue.First.Value;
@@ -476,11 +759,11 @@ namespace DSDecmp.Formats.Nitro
                         data |= 0x40;
                     outstream.WriteByte(data);
 
-                    printQueue.AddLast(node.Child0);
-                    printQueue.AddLast(node.Child1);
+                    printQueue.AddFirst(node.Child1);
+                    printQueue.AddFirst(node.Child0);
                 }
                 compressedLength++;
-            }
+            }/**/
 
             #endregion
 
@@ -530,211 +813,31 @@ namespace DSDecmp.Formats.Nitro
             return compressedLength;
         }
         #endregion
+    }
 
-        /// <summary>
-        /// Gets the tree node with the lowest priority (frequency) from the leaf and node queues.
-        /// If the priority is the same for both head items in the queues, the node from the leaf queue is picked.
-        /// </summary>
-        private HuffTreeNode GetLowest(SimpleReversedPrioQueue<int, HuffTreeNode> leafQueue, SimpleReversedPrioQueue<int, HuffTreeNode> nodeQueue, out int prio)
+    public class HuffmanAny : CompositeFormat
+    {
+        public HuffmanAny()
+            : base(new Huffman4(), new Huffman8()) { }
+
+        public override string ShortFormatString
         {
-            if (leafQueue.Count == 0)
-                return nodeQueue.Dequeue(out prio);
-            else if (nodeQueue.Count == 0)
-                return leafQueue.Dequeue(out prio);
-            else
-            {
-                int leafPrio, nodePrio;
-                leafQueue.Peek(out leafPrio);
-                nodeQueue.Peek(out nodePrio);
-                // pick a node from the leaf queue when the priorities are equal.
-                if (leafPrio <= nodePrio)
-                    return leafQueue.Dequeue(out prio);
-                else
-                    return nodeQueue.Dequeue(out prio);
-            }
+            get { return "Huffman"; }
         }
 
-        #region Utility class: HuffTreeNode
-        /// <summary>
-        /// A single node in a Huffman tree.
-        /// </summary>
-        public class HuffTreeNode
+        public override string Description
         {
-            /// <summary>
-            /// The data contained in this node. May not mean anything when <code>isData == false</code>
-            /// </summary>
-            private byte data;
-            /// <summary>
-            /// A flag indicating if this node has been filled.
-            /// </summary>
-            private bool isFilled;
-            /// <summary>
-            /// The data contained in this node. May not mean anything when <code>isData == false</code>.
-            /// Throws a NullReferenceException when this node has not been defined (ie: reference was outside the
-            /// bounds of the tree definition)
-            /// </summary>
-            public byte Data
-            {
-                get
-                {
-                    if (!this.isFilled) throw new NullReferenceException("Reference to an undefined node in the huffman tree.");
-                    return this.data;
-                }
-            }
-            /// <summary>
-            /// A flag indicating if this node contains data. If not, this is not a leaf node.
-            /// </summary>
-            private bool isData;
-            /// <summary>
-            /// Returns true if this node represents data.
-            /// </summary>
-            public bool IsData { get { return this.isData; } }
-
-            /// <summary>
-            /// The child of this node at side 0
-            /// </summary>
-            private HuffTreeNode child0;
-            /// <summary>
-            /// The child of this node at side 0
-            /// </summary>
-            public HuffTreeNode Child0 { get { return this.child0; } }
-            /// <summary>
-            /// The child of this node at side 1
-            /// </summary>
-            private HuffTreeNode child1;
-            /// <summary>
-            /// The child of this node at side 1
-            /// </summary>
-            public HuffTreeNode Child1 { get { return this.child1; } }
-            /// <summary>
-            /// The parent node of this node.
-            /// </summary>
-            public HuffTreeNode Parent { get; private set; }
-            /// <summary>
-            /// Determines if this is the Child0 of the parent node. Assumes there is a parent.
-            /// </summary>
-            public bool IsChild0 { get { return this.Parent.child0 == this; } }
-            /// <summary>
-            /// Determines if this is the Child1 of the parent node. Assumes there is a parent.
-            /// </summary>
-            public bool IsChild1 { get { return this.Parent.child1 == this; } }
-
-            private int depth;
-            /// <summary>
-            /// Get or set the depth of this node. Will not be set automatically, but
-            /// will be set recursively (the depth of all child nodes will be updated when this is set).
-            /// </summary>
-            public int Depth
-            {
-                get { return this.depth; }
-                set
-                {
-                    this.depth = value;
-                    // recursively set the depth of the child nodes.
-                    if (!this.isData)
-                    {
-                        this.child0.Depth = this.depth + 1;
-                        this.child1.Depth = this.depth + 1;
-                    }
-                }
-            }
-
-            /// <summary>
-            /// Manually creates a new node for a huffman tree.
-            /// </summary>
-            /// <param name="data">The data for this node.</param>
-            /// <param name="isData">If this node represents data.</param>
-            /// <param name="child0">The child of this node on the 0 side.</param>
-            /// <param name="child1">The child of this node on the 1 side.</param>
-            public HuffTreeNode(byte data, bool isData, HuffTreeNode child0, HuffTreeNode child1)
-            {
-                this.data = data;
-                this.isData = isData;
-                this.child0 = child0;
-                this.child1 = child1;
-                this.isFilled = true;
-                if (!isData)
-                {
-                    this.child0.Parent = this;
-                    this.child1.Parent = this;
-                }
-            }
-
-            /// <summary>
-            /// Creates a new node in the Huffman tree.
-            /// </summary>
-            /// <param name="stream">The stream to read from. It is assumed that there is (at least)
-            /// one more byte available to read.</param>
-            /// <param name="isData">If this node is a data-node.</param>
-            /// <param name="relOffset">The offset of this node in the source data, relative to the start
-            /// of the compressed file.</param>
-            /// <param name="maxStreamPos">The indicated end of the huffman tree. If the stream is past
-            /// this position, the tree is invalid.</param>
-            public HuffTreeNode(Stream stream, bool isData, long relOffset, long maxStreamPos)
-            {
-                /*
-                 Tree Table (list of 8bit nodes, starting with the root node)
-                    Root Node and Non-Data-Child Nodes are:
-                    Bit0-5   Offset to next child node,
-                            Next child node0 is at (CurrentAddr AND NOT 1)+Offset*2+2
-                            Next child node1 is at (CurrentAddr AND NOT 1)+Offset*2+2+1
-                    Bit6     Node1 End Flag (1=Next child node is data)
-                    Bit7     Node0 End Flag (1=Next child node is data)
-                    Data nodes are (when End Flag was set in parent node):
-                    Bit0-7   Data (upper bits should be zero if Data Size is less than 8)
-                 */
-
-                if (stream.Position >= maxStreamPos)
-                {
-                    // this happens when part of the tree is unused.
-                    this.isFilled = false;
-                    return;
-                }
-                this.isFilled = true;
-                int readData = stream.ReadByte();
-                if (readData < 0)
-                    throw new StreamTooShortException();
-                this.data = (byte)readData;
-
-                this.isData = isData;
-
-                if (!this.isData)
-                {
-                    int offset = this.data & 0x3F;
-                    bool zeroIsData = (this.data & 0x80) > 0;
-                    bool oneIsData = (this.data & 0x40) > 0;
-
-                    // off AND NOT 1 == off XOR (off AND 1)
-                    long zeroRelOffset = (relOffset ^ (relOffset & 1)) + offset * 2 + 2;
-
-                    long currStreamPos = stream.Position;
-                    // position the stream right before the 0-node
-                    stream.Position += (zeroRelOffset - relOffset) - 1;
-                    // read the 0-node
-                    this.child0 = new HuffTreeNode(stream, zeroIsData, zeroRelOffset, maxStreamPos);
-                    this.child0.Parent = this;
-                    // the 1-node is directly behind the 0-node
-                    this.child1 = new HuffTreeNode(stream, oneIsData, zeroRelOffset + 1, maxStreamPos);
-                    this.child1.Parent = this;
-
-                    // reset the stream position to right behind this node's data
-                    stream.Position = currStreamPos;
-                }
-            }
-
-            public override string ToString()
-            {
-                if (this.isData)
-                {
-                    return "<" + this.data.ToString("X2") + ">";
-                }
-                else
-                {
-                    return "[" + this.child0.ToString() + "," + this.child1.ToString() + "]";
-                }
-            }
-
+            get { return "Either the Huffman-4 or Huffman-8 format."; }
         }
-        #endregion
+
+        public override bool SupportsCompression
+        {
+            get { return true; }
+        }
+
+        public override string CompressionFlag
+        {
+            get { return "huff"; }
+        }
     }
 }

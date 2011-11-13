@@ -1,20 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.IO;
 using DSDecmp.Formats.Nitro;
 using DSDecmp.Formats;
-using System.IO;
 
 namespace DSDecmp
 {
+    
     public static class NewProgram
     {
+        
+
         /// <summary>
         /// The formats allowed when compressing a file.
         /// </summary>
         public enum Formats
         {
-            LZOVL, // keep this as the first one, as only the end of a file may be LZ-ovl-compressed (and overlay files are oftenly double-compressed)
+            LZOVL, // keep this as the first one, as only the end of a file may be LZ-ovl-compressed (and overlay files are oftenly double-compressed) (it needs to be attempted first when decompressing)
             LZ10,
             LZ11,
             HUFF4,
@@ -22,10 +25,10 @@ namespace DSDecmp
             RLE,
             HUFF,
             NDS,
-            GBA,
+            GBA
         }
 
-        public static void Main(string[] args)
+        public static void MainNewOld(string[] args)
         {
             if (args.Length == 0)
             {
@@ -275,8 +278,8 @@ namespace DSDecmp
                 case Formats.LZ11: fmt = new LZ11(); break;
                 case Formats.LZOVL: fmt = new LZOvl(); break;
                 case Formats.RLE: fmt = new RLE(); break;
-                case Formats.HUFF4: Huffman.CompressBlockSize = Huffman.BlockSize.FOURBIT; fmt = new Huffman(); break;
-                case Formats.HUFF8: Huffman.CompressBlockSize = Huffman.BlockSize.EIGHTBIT; fmt = new Huffman(); break;
+                case Formats.HUFF4: fmt = new Huffman4(); break;
+                case Formats.HUFF8: fmt = new Huffman8(); break;
                 case Formats.HUFF:
                     return CompressHuff(infile, output, out actualFormat);
                 case Formats.GBA:
@@ -339,12 +342,15 @@ namespace DSDecmp
                 CompressionFormat realFormat = null;
                 switch (format)
                 {
-                    case Formats.HUFF4: Huffman.CompressBlockSize = Huffman.BlockSize.FOURBIT; realFormat = new Huffman(); break;
-                    case Formats.HUFF8: Huffman.CompressBlockSize = Huffman.BlockSize.EIGHTBIT; realFormat = new Huffman(); break;
+                    case Formats.HUFF4: realFormat = new Huffman4(); break;
+                    case Formats.HUFF8: realFormat = new Huffman8(); break;
                     case Formats.LZ10: realFormat = new LZ10(); break;
                     case Formats.LZ11: realFormat = new LZ11(); break;
                     case Formats.LZOVL: realFormat = new LZOvl(); break;
                     case Formats.RLE: realFormat = new RLE(); break;
+                    default:
+                        Console.WriteLine("Unsupported single format: "+format);
+                        continue;
                 }
 
                 int currentOutSize;
@@ -450,7 +456,7 @@ namespace DSDecmp
             {
                 using (MemoryStream inStream = new MemoryStream(inData))
                 {
-                    decSize = Decompress(inStream, decompressedData, f);
+                    decSize = Decompress(inStream, decompressedData, null);
                     if (decSize >= 0)
                     {
                         usedFormat = f;
@@ -515,29 +521,13 @@ namespace DSDecmp
 
         }
 
-        private static long Decompress(MemoryStream inputStream, MemoryStream output, Formats format)
+        private static long Decompress(MemoryStream inputStream, MemoryStream output, CompressionFormat format)
         {
-            CompressionFormat realFormat = null;
-            switch (format)
-            {
-                case Formats.HUFF:
-                    realFormat = new Huffman(); break;
-                case Formats.LZ10:
-                    realFormat = new LZ10(); break;
-                case Formats.LZ11:
-                    realFormat = new LZ11(); break;
-                case Formats.LZOVL:
-                    realFormat = new LZOvl(); break;
-                case Formats.RLE:
-                    realFormat = new RLE(); break;
-                default:
-                    return -1;
-            }
-            if (!realFormat.Supports(inputStream, inputStream.Length))
+            if (!format.Supports(inputStream, inputStream.Length))
                 return -1;
             try
             {
-                return realFormat.Decompress(inputStream, inputStream.Length, output);
+                return format.Decompress(inputStream, inputStream.Length, output);
             }
             catch (TooMuchInputException e)
             {
@@ -546,7 +536,7 @@ namespace DSDecmp
             }
             catch (Exception e)
             {
-                Console.WriteLine("Could not decompress using the " + format.ToString() + " format; " + e.Message);
+                Console.WriteLine("Could not decompress using the " + format.ShortFormatString + " format; " + e.Message);
                 return -1;
             }
         }

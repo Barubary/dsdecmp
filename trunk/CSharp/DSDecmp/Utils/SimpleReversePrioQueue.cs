@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DSDecmp.Utils
+namespace DSDecmp
 {
     /// <summary>
     /// Very simplistic implementation of a priority queue that returns items with lowest priority first.
@@ -17,14 +17,25 @@ namespace DSDecmp.Utils
         private SortedDictionary<TPrio, LinkedList<TValue>> items;
         private int itemCount;
 
+        /// <summary>
+        /// Gets the number of items in this queue.
+        /// </summary>
         public int Count { get { return this.itemCount; } }
 
+        /// <summary>
+        /// Creates a new, empty reverse priority queue.
+        /// </summary>
         public SimpleReversedPrioQueue()
         {
             this.items = new SortedDictionary<TPrio, LinkedList<TValue>>();
             this.itemCount = 0;
         }
 
+        /// <summary>
+        /// Enqueues the given value, using the given priority.
+        /// </summary>
+        /// <param name="priority">The priority of the value.</param>
+        /// <param name="value">The value to enqueue.</param>
         public void Enqueue(TPrio priority, TValue value)
         {
             if (!this.items.ContainsKey(priority))
@@ -33,6 +44,12 @@ namespace DSDecmp.Utils
             this.itemCount++;
         }
 
+        /// <summary>
+        /// Gets the current value with the lowest priority from this queue, without dequeueing the value.
+        /// </summary>
+        /// <param name="priority">The priority of the returned value.</param>
+        /// <returns>The current value with the lowest priority.</returns>
+        /// <exception cref="IndexOutOfRangeException">If there are no items left in this queue.</exception>
         public TValue Peek(out TPrio priority)
         {
             if (this.itemCount == 0)
@@ -45,6 +62,12 @@ namespace DSDecmp.Utils
             throw new IndexOutOfRangeException();
         }
 
+        /// <summary>
+        /// Dequeues the current value at the head of thisreverse priority queue.
+        /// </summary>
+        /// <param name="priority">The priority of the dequeued value.</param>
+        /// <returns>The dequeued value, that used to be at the head of this queue.</returns>
+        /// <exception cref="IndexOutOfRangeException">If this queue does not contain any items.</exception>
         public TValue Dequeue(out TPrio priority)
         {
             if (this.itemCount == 0)

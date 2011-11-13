@@ -1,7 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual C# Express 2010
+# Visual Studio 2010
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DSDecmp", "DSDecmp\DSDecmp.csproj", "{E6F419F9-D6B5-4BE7-99BB-97C48C927FF3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoldenSunDD", "GoldenSunDD\GoldenSunDD.csproj", "{8CE72663-0036-4A94-BD70-99AFE7CEEC0C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LuminousArc", "LuminousArc\LuminousArc.csproj", "{4BD8DF5C-E971-45D1-B170-340D22DDB351}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,6 +17,14 @@ Global
 		{E6F419F9-D6B5-4BE7-99BB-97C48C927FF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E6F419F9-D6B5-4BE7-99BB-97C48C927FF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E6F419F9-D6B5-4BE7-99BB-97C48C927FF3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8CE72663-0036-4A94-BD70-99AFE7CEEC0C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CE72663-0036-4A94-BD70-99AFE7CEEC0C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CE72663-0036-4A94-BD70-99AFE7CEEC0C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CE72663-0036-4A94-BD70-99AFE7CEEC0C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4BD8DF5C-E971-45D1-B170-340D22DDB351}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4BD8DF5C-E971-45D1-B170-340D22DDB351}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4BD8DF5C-E971-45D1-B170-340D22DDB351}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4BD8DF5C-E971-45D1-B170-340D22DDB351}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

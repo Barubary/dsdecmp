@@ -2,11 +2,33 @@
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using DSDecmp;
 
-namespace DSDecmp.Formats.GameSpecific
+namespace GameFormats
 {
     public class GoldenSunDD : CompressionFormat
     {
+
+        public override string ShortFormatString
+        {
+            get { return "GSDD"; }
+        }
+
+        public override string Description
+        {
+            get { return "A variant of the LZ-0x11 scheme found in Golden Sun: Dark Dawn."; }
+        }
+
+        public override string CompressionFlag
+        {
+            get { return "gsdd"; }
+        }
+
+        public override bool SupportsCompression
+        {
+            get { return false; }
+        }
+
         public override bool Supports(System.IO.Stream stream, long inLength)
         {
             long streamStart = stream.Position;
@@ -50,11 +72,7 @@ namespace DSDecmp.Formats.GameSpecific
              * 
              * for each chunk:
              *      - first byte determines which blocks are compressed
-             *          - block i is compressed iff:
-             *              - the i'th MSB is the last 1-bit in the byte
-             *              - OR the i'th MSB is a 0-bit, not directly followed by other 0-bits.
-             *          - note that there will never be more than one 0-bit before any 1-bit in this byte
-             *          (look at the corresponding code, it may clarify this a bit more)
+             *           multiply by -1 to get the proper flags (1->compressed, 0->raw)
              *      - then come 8 blocks:
              *          - a non-compressed block is simply one single byte
              *          - a compressed block can have 3 sizes:
@@ -112,6 +130,7 @@ namespace DSDecmp.Formats.GameSpecific
                     // determine which blocks are compressed
                     int b = 0;
                     expandedFlags = new bool[8];
+                    // flags = -flags
                     while (flags > 0)
                     {
                         bool bit = (flags & 0x80) > 0;

@@ -36,6 +36,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DocumentationFile>bin\Release\DSDecmp.XML</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -44,17 +45,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Exceptions\InputTooLargeException.cs" />
+    <Compile Include="Exceptions\NotEnoughDataException.cs" />
     <Compile Include="Exceptions\StreamTooShortException.cs" />
     <Compile Include="Exceptions\TooMuchInputException.cs" />
     <Compile Include="Formats\CompressionFormat.cs" />
-    <Compile Include="Formats\GameSpecific\GoldenSunDD.cs" />
+    <Compile Include="Formats\LZOvl.cs" />
+    <Compile Include="Formats\CompositeFormat.cs" />
+    <Compile Include="Formats\Nitro\CompositeFormats.cs" />
     <Compile Include="Formats\Nitro\Huffman.cs" />
     <Compile Include="Formats\Nitro\LZ10.cs" />
     <Compile Include="Formats\Nitro\LZ11.cs" />
-    <Compile Include="Formats\LZOvl.cs" />
     <Compile Include="Formats\Nitro\NitroCFormat.cs" />
-    <Compile Include="Exceptions\NotEnoughDataException.cs" />
     <Compile Include="Formats\Nitro\RLE.cs" />
+    <Compile Include="NewestProgram.cs" />
     <Compile Include="NewProgram.cs" />
     <Compile Include="TestProgram.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -62,6 +65,7 @@
     <Compile Include="Utils\LZUtil.cs" />
     <Compile Include="Utils\SimpleReversePrioQueue.cs" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

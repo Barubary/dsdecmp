@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 
-namespace DSDecmp.Formats
+namespace DSDecmp
 {
     /// <summary>
-    /// Base class for compression formats.
+    /// Base class for all compression formats.
     /// </summary>
     public abstract class CompressionFormat
     {
@@ -86,7 +86,7 @@ namespace DSDecmp.Formats
         /// </summary>
         /// <param name="infile">The file to compress.</param>
         /// <param name="outfile">The file to write the compressed data to.</param>
-        /// <returns>The size of the compressed file.</returns>
+        /// <returns>The size of the compressed file. If -1, the file could not be compressed.</returns>
         public int Compress(string infile, string outfile)
         {
             // make sure the output directory exists
@@ -108,7 +108,35 @@ namespace DSDecmp.Formats
         /// <param name="instream">The stream to read plaintext data from.</param>
         /// <param name="inLength">The length of the plaintext data.</param>
         /// <param name="outstream">The stream to write the compressed data to.</param>
-        /// <returns>The size of the compressed stream.</returns>
+        /// <returns>The size of the compressed stream. If -1, the file could not be compressed.</returns>
         public abstract int Compress(Stream instream, long inLength, Stream outstream);
+
+        /// <summary>
+        /// Gets a short string identifying this compression format.
+        /// </summary>
+        public abstract string ShortFormatString { get; }
+        /// <summary>
+        /// Gets a short description of this compression format (used in the program usage).
+        /// </summary>
+        public abstract string Description { get; }
+
+        /// <summary>
+        /// Gets if this format supports compressing a file.
+        /// </summary>
+        public abstract bool SupportsCompression { get; }
+        /// <summary>
+        /// Gets if this format supports decompressing a file.
+        /// </summary>
+        public virtual bool SupportsDecompression { get { return true; } }
+        /// <summary>
+        /// Gets the value that must be given on the command line in order to compress using this format.
+        /// </summary>
+        public abstract string CompressionFlag { get; }
+        /// <summary>
+        /// Parses any input specific for this format. Does nothing by default.
+        /// </summary>
+        /// <param name="args">Any arguments that may be used by the format.</param>
+        /// <returns>The number of input arguments consumed by this format.</returns>
+        public virtual int ParseCompressionOptions(string[] args) { return 0; }
     }
 }

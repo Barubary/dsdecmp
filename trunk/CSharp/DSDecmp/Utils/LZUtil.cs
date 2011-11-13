@@ -2,9 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace DSDecmp.Utils
+namespace DSDecmp
 {
-    internal static class LZUtil
+    /// <summary>
+    /// Utility class for compression using LZ-like compression schemes.
+    /// </summary>
+    public static class LZUtil
     {
         /// <summary>
         /// Determine the maximum size of a LZ-compressed block starting at newPtr, using the already compressed data
@@ -16,7 +19,7 @@ namespace DSDecmp.Utils
         /// <param name="oldLength">The number of bytes already compressed.</param>
         /// <param name="disp">The offset of the start of the longest block to refer to.</param>
         /// <returns>The length of the longest sequence of bytes that can be copied from the already decompressed data.</returns>
-        internal static unsafe int GetOccurrenceLength(byte* newPtr, int newLength, byte* oldPtr, int oldLength, out int disp)
+        public static unsafe int GetOccurrenceLength(byte* newPtr, int newLength, byte* oldPtr, int oldLength, out int disp)
         {
             disp = 0;
             if (newLength == 0)

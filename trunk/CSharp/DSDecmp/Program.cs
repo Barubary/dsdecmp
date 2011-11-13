@@ -48,7 +48,14 @@ namespace DSDecmp
         static bool AllowOVL = true;
         static bool ForceOVL = false;
 
+        /*
         static void Main(string[] args)
+        {
+            Console.WriteLine(-14 % 10);
+            Console.ReadLine();
+        }/**/
+
+        public static void Main1(string[] args)
         {
 
             if (args.Length == 0) { Usage(); return; }
@@ -452,7 +459,8 @@ namespace DSDecmp
             byte treeSize = br.ReadByte();
             HuffTreeNode.maxInpos = 4 + (treeSize + 1) * 2;
 
-            //Console.WriteLine("Tree Size: {0:x}", treeSize);
+            Console.WriteLine("Tree Size: {0:x}", treeSize);
+            Console.WriteLine("Tee end: 0x{0:X}", HuffTreeNode.maxInpos);
 
             HuffTreeNode rootNode = new HuffTreeNode();
             rootNode.parseData(br);
@@ -476,11 +484,16 @@ namespace DSDecmp
             string codestr = "";
             LinkedList<byte> code = new LinkedList<byte>();
             int value;
+
+            decomp_size = 0x100;
+
             while (curr_size < decomp_size)
             {
                 try
                 {
-                    codestr += uint_to_bits(indata[++idx]);
+                    string newstr = uint_to_bits(indata[++idx]);
+                    codestr += newstr;
+                    Console.WriteLine("next uint: "+newstr);
                 }
                 catch (IndexOutOfRangeException e)
                 {
@@ -489,9 +502,11 @@ namespace DSDecmp
                 while (codestr.Length > 0)
                 {
                     code.AddFirst(byte.Parse(codestr[0] + ""));
+                    //Console.Write(code.First.Value);
                     codestr = codestr.Remove(0, 1);
                     if (rootNode.getValue(code.Last, out value))
                     {
+                        //Console.WriteLine(" -> "+value.ToString("X"));
                         try
                         {
                             outdata[curr_size++] = (byte)value;
@@ -505,6 +520,7 @@ namespace DSDecmp
                     }
                 }
             }
+            /*
             if (codestr.Length > 0 || idx < indata.Length-1)
             {
                 while (idx < indata.Length-1)
@@ -512,7 +528,9 @@ namespace DSDecmp
                 codestr = codestr.Replace("0", "");
                 if (codestr.Length > 0)
                     Console.WriteLine("too much data; str={0:s}, idx={1:g}/{2:g}", codestr, idx, indata.Length);
-            }
+            }/**/
+
+            br.Close();
 
             byte[] realout;
             if (dataSize == 4)
@@ -1426,7 +1444,7 @@ namespace DSDecmp
 
         public override string ToString()
         {
-            if (data < 0)
+            if (data < 0 && node0 != null && node1 != null)
                 return "<" + node0.ToString() + ", " + node1.ToString() + ">";
             else
                 return String.Format("[{0:x}]", data);

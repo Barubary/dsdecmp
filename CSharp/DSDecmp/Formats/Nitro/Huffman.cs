@@ -222,6 +222,7 @@ namespace DSDecmp.Formats.Nitro
         /// </summary>
         public class HuffTreeNode
         {
+            #region Fields & Properties: Data & IsData
             /// <summary>
             /// The data contained in this node. May not mean anything when <code>isData == false</code>
             /// </summary>
@@ -251,7 +252,9 @@ namespace DSDecmp.Formats.Nitro
             /// Returns true if this node represents data.
             /// </summary>
             public bool IsData { get { return this.isData; } }
+            #endregion
 
+            #region Field & Properties: Children & Parent
             /// <summary>
             /// The child of this node at side 0
             /// </summary>
@@ -280,7 +283,9 @@ namespace DSDecmp.Formats.Nitro
             /// Determines if this is the Child1 of the parent node. Assumes there is a parent.
             /// </summary>
             public bool IsChild1 { get { return this.Parent.child1 == this; } }
+            #endregion
 
+            #region Field & Property: Depth
             private int depth;
             /// <summary>
             /// Get or set the depth of this node. Will not be set automatically, but
@@ -300,7 +305,9 @@ namespace DSDecmp.Formats.Nitro
                     }
                 }
             }
+            #endregion
 
+            #region Property: Size
             /// <summary>
             /// Calculates the size of the sub-tree with this node as root.
             /// </summary>
@@ -313,25 +320,15 @@ namespace DSDecmp.Formats.Nitro
                     return 1 + this.child0.Size + this.child1.Size;
                 }
             }
+            #endregion
 
             /// <summary>
-            /// Returns a seuqnce over the nodes of the sub-tree with this node as root in a pre-order fashion. (Root-Left-Right)
+            /// The index of this node in the array for building the proper ordering.
+            /// If -1, this node has not yet been placed in the array.
             /// </summary>
-            public IEnumerable<HuffTreeNode> PreOrderTraversal
-            {
-                get
-                {
-                    yield return this;
-                    if (!this.IsData)
-                    {
-                        foreach (HuffTreeNode c in this.child0.PreOrderTraversal)
-                            yield return c;
-                        foreach (HuffTreeNode c in this.child1.PreOrderTraversal)
-                            yield return c;
-                    }
-                }
-            }
+            internal int index = -1;
 
+            #region Constructor(data, isData, child0, child1)
             /// <summary>
             /// Manually creates a new node for a huffman tree.
             /// </summary>
@@ -352,7 +349,9 @@ namespace DSDecmp.Formats.Nitro
                     this.child1.Parent = this;
                 }
             }
+            #endregion
 
+            #region Constructor(Stream, isData, relOffset, maxStreamPos)
             /// <summary>
             /// Creates a new node in the Huffman tree.
             /// </summary>
@@ -414,6 +413,7 @@ namespace DSDecmp.Formats.Nitro
                     stream.Position = currStreamPos;
                 }
             }
+            #endregion
 
             public override string ToString()
             {
@@ -531,6 +531,7 @@ namespace DSDecmp.Formats.Nitro
             compressedLength++;
 
             // use a breadth-first traversal to store the tree, such that we do not need to store/calculate the side of each sub-tree.
+            // because the data is only 4 bits long, no tree will ever let the offset field overflow.
             LinkedList<HuffTreeNode> printQueue = new LinkedList<HuffTreeNode>();
             printQueue.AddLast(root);
             while (printQueue.Count > 0)
@@ -547,6 +548,8 @@ namespace DSDecmp.Formats.Nitro
                     // bit 6: node1 end flag
                     // bit 7: node0 end flag
                     byte data = (byte)(printQueue.Count / 2);
+                    if (data > 0x3F)
+                        throw new InvalidDataException("BUG: offset overflow in 4-bit huffman.");
                     data = (byte)(data & 0x3F);
                     if (node.Child0.IsData)
                         data |= 0x80;
@@ -712,59 +715,99 @@ namespace DSDecmp.Formats.Nitro
             compressedLength++;
 
             // use a breadth-first traversal to store the tree, such that we do not need to store/calculate the size of each sub-tree.
-            // NO! BF results in an ordering that may overflow the offset field. use pre-order instead (Self-Left-Right)
-            foreach (HuffTreeNode node in root.PreOrderTraversal)
+            // NO! BF results in an ordering that may overflow the offset field.
+            
+            // find the BF order of all nodes that have two leaves as children. We're going to insert them in an array in reverse BF order,
+            // inserting the parent whenever both children have been inserted.
+            
+            LinkedList<HuffTreeNode> leafStemQueue = new LinkedList<HuffTreeNode>();
+
+            #region fill the leaf queue; first->last will be reverse BF
+            LinkedList<HuffTreeNode> nodeCodeStack = new LinkedList<HuffTreeNode>();
+            nodeCodeStack.AddLast(root);
+            while (nodeCodeStack.Count > 0)
             {
-                if (node.Parent == null) // root node.
-                {
-                    // bits 0-5: 'offset' = # nodes in queue left
-                    // bit 6: node1 end flag
-                    // bit 7: node0 end flag
-                    byte data = 0;
-                    if (node.Child0.IsData)
-                        data |= 0x80;
-                    if (node.Child1.IsData)
-                        data |= 0x40;
-                    outstream.WriteByte(data);
-                }
+                HuffTreeNode node = nodeCodeStack.First.Value;
+                nodeCodeStack.RemoveFirst();
                 if (node.IsData)
                     continue;
+                if (node.Child0.IsData && node.Child1.IsData)
+                {
+                    leafStemQueue.AddFirst(node);
+                }
                 else
                 {
-                    // bits 0-5: 'offset': if this is left node, 0. if right node
-                    // bit 6: node1 end flag
-                    // bit 7: node0 end flag
+                    nodeCodeStack.AddLast(node.Child0);
+                    nodeCodeStack.AddLast(node.Child1);
                 }
-                compressedLength++;
+
             }
-            /*
-            while (printQueue.Count > 0)
+            #endregion
+
+            HuffTreeNode[] nodeArray = new HuffTreeNode[0x1FF]; // this array does not contain the leaves themselves!
+            while (leafStemQueue.Count > 0)
             {
-                HuffTreeNode node = printQueue.First.Value;
-                printQueue.RemoveFirst();
-                if (node.IsData)
-                {
-                    outstream.WriteByte(node.Data);
-                }
-                else
-                {
-                    // bits 0-5: 'offset' = # nodes in queue left
-                    // bit 6: node1 end flag
-                    // bit 7: node0 end flag
-                    byte data = (byte)(printQueue.Count / 2);
-                    data = (byte)(data & 0x3F);
-                    if (node.Child0.IsData)
-                        data |= 0x80;
-                    if (node.Child1.IsData)
-                        data |= 0x40;
-                    outstream.WriteByte(data);
+                Insert(leafStemQueue.First.Value, nodeArray, 0x3F + 1);
+                leafStemQueue.RemoveFirst();
+            }
 
-                    printQueue.AddFirst(node.Child1);
-                    printQueue.AddFirst(node.Child0);
-                }
-                compressedLength++;
-            }/**/
+            // update the indices to ignore all gaps
+            int nodeIndex = 0;
+            for (int i = 0; i < nodeArray.Length; i++)
+            {
+                if (nodeArray[i] != null)
+                    nodeArray[i].index = nodeIndex++;
+            }
 
+            // write the nodes in their given order. However when 'writing' a node, write the data of its children instead.
+            // the root node is always the first node.
+            byte rootData = 0;
+            if (root.Child0.IsData)
+                rootData |= 0x80;
+            if (root.Child1.IsData)
+                rootData |= 0x40;
+            outstream.WriteByte(rootData); compressedLength++;
+
+            for (int i = 0; i < nodeArray.Length; i++)
+            {
+                if (nodeArray[i] != null)
+                {
+                    // nodes in this array are never data!
+                    HuffTreeNode node0 = nodeArray[i].Child0;
+                    if (node0.IsData)
+                        outstream.WriteByte(node0.Data);
+                    else
+                    {
+                        int offset = node0.index - nodeArray[i].index - 1;
+                        if (offset > 0x3F)
+                            throw new Exception("Offset overflow!");
+                        byte data = (byte)offset;
+                        if (node0.Child0.IsData)
+                            data |= 0x80;
+                        if (node0.Child1.IsData)
+                            data |= 0x40;
+                        outstream.WriteByte(data);
+                    }
+
+                    HuffTreeNode node1 = nodeArray[i].Child1;
+                    if (node1.IsData)
+                        outstream.WriteByte(node1.Data);
+                    else
+                    {
+                        int offset = node1.index - nodeArray[i].index - 1;
+                        if (offset > 0x3F)
+                            throw new Exception("Offset overflow!");
+                        byte data = (byte)offset;
+                        if (node0.Child0.IsData)
+                            data |= 0x80;
+                        if (node0.Child1.IsData)
+                            data |= 0x40;
+                        outstream.WriteByte(data);
+                    }
+
+                    compressedLength += 2;
+                }
+            }
             #endregion
 
             #region write the data
@@ -811,6 +854,98 @@ namespace DSDecmp.Formats.Nitro
             #endregion
 
             return compressedLength;
+        }
+        #endregion
+
+        #region Utility Method: Insert(node, HuffTreeNode[], maxOffset)
+        /// <summary>
+        /// Inserts the given node into the given array, in such a location that
+        /// the offset to both of its children is at most the given maximum, and as large as possible.
+        /// In order to do this, the contents of the array may be shifted to the right.
+        /// </summary>
+        /// <param name="node">The node to insert.</param>
+        /// <param name="array">The array to insert the node in.</param>
+        /// <param name="maxOffset">The maximum offset between parent and children.</param>
+        private void Insert(HuffTreeNode node, HuffTreeNode[] array, int maxOffset)
+        {
+            // if the node has two data-children, insert it as far to the end as possible.
+            if (node.Child0.IsData && node.Child1.IsData)
+            {
+                for (int i = array.Length - 1; i >= 0; i--)
+                {
+                    if (array[i] == null)
+                    {
+                        array[i] = node;
+                        node.index = i;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                // if the node is not data, insert it as far left as possible.
+                // we know that both children are already present.
+                int offset = Math.Max(node.Child0.index - maxOffset, node.Child1.index - maxOffset);
+                offset = Math.Max(0, offset);
+                if (offset >= node.Child0.index || offset >= node.Child1.index)
+                {
+                    // it may be that the childen are too far apart, with lots of empty entries in-between.
+                    // shift the bottom child right until the node fits in its left-most place for the top child.
+                    // (there should be more than enough room in the array)
+                    while (offset >= Math.Min(node.Child0.index, node.Child1.index))
+                        ShiftRight(array, Math.Min(node.Child0.index, node.Child1.index), maxOffset);
+                    while (array[offset] != null)
+                        ShiftRight(array, offset, maxOffset);
+                    array[offset] = node;
+                    node.index = offset;
+                }
+                else
+                {
+                    for (int i = offset; i < node.Child0.index && i < node.Child1.index; i++)
+                    {
+                        if (array[i] == null)
+                        {
+                            array[i] = node;
+                            node.index = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (node.index < 0)
+                throw new Exception("Node could not be inserted!");
+
+            // if the insertion of this node means that the parent has both children inserted, insert the parent.
+            if (node.Parent != null)
+            {
+                if ((node.Parent.Child0.index >= 0 || node.Parent.Child0.IsData)
+                    && (node.Parent.Child1.index >= 0 || node.Parent.Child1.IsData))
+                    Insert(node.Parent, array, maxOffset);
+            }
+        }
+        #endregion
+
+        #region Utility Method: ShiftRight(HuffTreeNode[], index, maxOffset)
+        /// <summary>
+        /// Shifts the node at the given index one to the right.
+        /// If the distance between parent and child becomes too large due to this shift, the parent is shifted as well.
+        /// </summary>
+        /// <param name="array">The array to shift the node in.</param>
+        /// <param name="idx">The index of the node to shift.</param>
+        /// <param name="maxOffset">The maximum distance between parent and children.</param>
+        private void ShiftRight(HuffTreeNode[] array, int idx, int maxOffset)
+        {
+            HuffTreeNode node = array[idx];
+            if (array[idx + 1] != null)
+                ShiftRight(array, idx + 1, maxOffset);
+            if (node.Parent.index > 0 && node.index - maxOffset + 1 > node.Parent.index)
+                ShiftRight(array, node.Parent.index, maxOffset);
+            if (node != array[idx])
+                return; // already done indirectly.
+            array[idx + 1] = array[idx];
+            array[idx] = null;
+            node.index++;
         }
         #endregion
     }

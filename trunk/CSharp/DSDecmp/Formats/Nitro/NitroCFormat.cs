@@ -27,11 +27,18 @@ namespace DSDecmp.Formats.Nitro
         /// </summary>
         protected byte magicByte;
 
-        public NitroCFormat(byte magicByte)
+        /// <summary>
+        /// Creates a new instance of the Nitro Compression Format base class.
+        /// </summary>
+        /// <param name="magicByte">The expected first byte of the file for this format.</param>
+        protected NitroCFormat(byte magicByte)
         {
             this.magicByte = magicByte;
         }
 
+        /// <summary>
+        /// Checks if the first four bytes match the format used in nitro compression formats.
+        /// </summary>
         public override bool Supports(System.IO.Stream stream, long inLength)
         {
             long startPosition = stream.Position;

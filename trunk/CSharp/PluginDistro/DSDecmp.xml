@@ -247,6 +247,66 @@
             Nitro Dcompressor instance.
             </summary>
         </member>
+        <member name="M:DSDecmp.Formats.Nitro.NitroCFormat.#ctor(System.Byte)">
+            <summary>
+            Creates a new instance of the Nitro Compression Format base class.
+            </summary>
+            <param name="magicByte">The expected first byte of the file for this format.</param>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.NitroCFormat.Supports(System.IO.Stream,System.Int64)">
+            <summary>
+            Checks if the first four bytes match the format used in nitro compression formats.
+            </summary>
+        </member>
+        <member name="T:DSDecmp.Formats.CompositeFormat">
+            <summary>
+            A format that is composed of multiple formats.
+            When compressing, the input is compressed using the best contained format.
+            When decompressing, all contained formats will try to decompress the file, until one succeeds.
+            </summary>
+        </member>
+        <member name="F:DSDecmp.Formats.CompositeFormat.formats">
+            <summary>
+            The actual list of formats this format is somposed of.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.CompositeFormat.#ctor(System.Collections.Generic.IEnumerable{DSDecmp.CompressionFormat})">
+            <summary>
+            Creates a new composite format based on the given sequence of formats.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.CompositeFormat.#ctor(DSDecmp.CompressionFormat[])">
+            <summary>
+            Creates a new composite format based on the given formats.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.CompositeFormat.Supports(System.IO.Stream,System.Int64)">
+            <summary>
+            Checks if any of the contained formats supports the given input.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.CompositeFormat.Decompress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Attempts to decompress the given input by letting all contained formats
+            try to decompress the input.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.CompositeFormat.Compress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Compresses the given input using the contained format that yields the best results in terms of
+            size reduction.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.CompositeFormat.ParseCompressionOptions(System.String[])">
+            <summary>
+            Handles the compression options for each of the contained compression formats.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.CompositeFormat.LastUsedCompressFormatString">
+            <summary>
+            Gets the ShortFormatString of the last CompressionFormat that was used to compress input.
+            </summary>
+        </member>
         <member name="T:DSDecmp.StreamTooShortException">
             <summary>
             An exception thrown by the compression or decompression function, indicating that the
@@ -262,6 +322,29 @@
             <summary>
             Compressor and decompressor for the LZ-0x11 format used in many of the games for the
             newer Nintendo consoles and handhelds.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.LZ11.#ctor">
+            <summary>
+            Creates a new instance of the LZ-11 compression format.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.LZ11.ParseCompressionOptions(System.String[])">
+            <summary>
+            Checks if the given aguments have the '-opt' option, which makes this format
+            compress using (near-)optimal compression instead of the original compression algorithm.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.LZ11.Decompress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Decompresses the input using the LZ-11 compression scheme.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.LZ11.Compress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Compresses the input using the 'original', unoptimized compression algorithm.
+            This algorithm should yield files that are the same as those found in the games.
+            (delegates to the optimized method if LookAhead is set)
             </summary>
         </member>
         <member name="M:DSDecmp.Formats.Nitro.LZ11.CompressWithLA(System.IO.Stream,System.Int64,System.IO.Stream)">
@@ -284,6 +367,26 @@
             <param name="disps">The 'disp' values of the compressed blocks. May be 0, in which case the
             corresponding length will never be anything other than 1.</param>
         </member>
+        <member name="P:DSDecmp.Formats.Nitro.LZ11.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.LZ11.Description">
+            <summary>
+            Gets a short description of this compression format (used in the program usage).
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.LZ11.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.LZ11.SupportsCompression">
+            <summary>
+            Gets if this format supports compressing a file.
+            </summary>
+        </member>
         <member name="P:DSDecmp.Formats.Nitro.LZ11.LookAhead">
             <summary>
             Sets the flag that determines if 'look-ahead'/DP should be used when compressing
@@ -297,6 +400,17 @@
             newer Nintendo consoles and handhelds.
             </summary>
         </member>
+        <member name="M:DSDecmp.Formats.Nitro.LZ10.#ctor">
+            <summary>
+            Creates a new instance of the LZ-10 compression format.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.LZ10.ParseCompressionOptions(System.String[])">
+            <summary>
+            Checks if the given aguments have the '-opt' option, which makes this format
+            compress using (near-)optimal compression instead of the original compression algorithm.
+            </summary>
+        </member>
         <member name="M:DSDecmp.Formats.Nitro.LZ10.Decompress(System.IO.Stream,System.Int64,System.IO.Stream)">
             <summary>
             Decompress a stream that is compressed in the LZ-10 format.
@@ -304,6 +418,13 @@
             <param name="instream">The compressed stream.</param>
             <param name="inLength">The length of the input stream.</param>
             <param name="outstream">The output stream, where the decompressed data is written to.</param>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.LZ10.Compress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Compresses the input using the 'original', unoptimized compression algorithm.
+            This algorithm should yield files that are the same as those found in the games.
+            (delegates to the optimized method if LookAhead is set)
+            </summary>
         </member>
         <member name="M:DSDecmp.Formats.Nitro.LZ10.CompressWithLA(System.IO.Stream,System.Int64,System.IO.Stream)">
             <summary>
@@ -324,6 +445,26 @@
             <param name="disps">The 'disp' values of the compressed blocks. May be 0, in which case the
             corresponding length will never be anything other than 1.</param>
         </member>
+        <member name="P:DSDecmp.Formats.Nitro.LZ10.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.LZ10.Description">
+            <summary>
+            Gets a short description of this compression format (used in the program usage).
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.LZ10.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.LZ10.SupportsCompression">
+            <summary>
+            Gets if this format supports compressing a file.
+            </summary>
+        </member>
         <member name="P:DSDecmp.Formats.Nitro.LZ10.LookAhead">
             <summary>
             Sets the flag that determines if 'look-ahead'/DP should be used when compressing
@@ -337,12 +478,78 @@
             newer Nintendo consoles and handhelds.
             </summary>
         </member>
+        <member name="M:DSDecmp.Formats.Nitro.RLE.#ctor">
+            <summary>
+            Creates a new instance of the RLE compression format.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.RLE.Decompress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Decompresses the input using the RLE compression scheme.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.RLE.Compress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Compresses the input using the RLE compression scheme.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.RLE.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.RLE.Description">
+            <summary>
+            Gets a short description of this compression format (used in the program usage).
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.RLE.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.RLE.SupportsCompression">
+            <summary>
+            Gets if this format supports compressing a file.
+            </summary>
+        </member>
         <member name="T:DSDecmp.Formats.LZOvl">
             <summary>
             The LZ-Overlay compression format. Compresses part of the file from end to start.
             Is used for the 'overlay' files in NDS games, as well as arm9.bin.
             Note that the last 12 bytes should not be included in the 'inLength' argument when
             decompressing arm9.bin. This is done automatically if a file is given instead of a stream.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.LZOvl.ParseCompressionOptions(System.String[])">
+            <summary>
+            Checks if the given aguments have the '-opt' option, which makes this format
+            compress using (near-)optimal compression instead of the original compression algorithm.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.LZOvl.Supports(System.String)">
+            <summary>
+            Checks if this format supports decompressing the given file.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.LZOvl.Supports(System.IO.Stream,System.Int64)">
+            <summary>
+            Checks if this format supports decompressing the given input.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.LZOvl.Decompress(System.String,System.String)">
+            <summary>
+            Decompresses the given input file to the given output file using the LZ-Overlay compression format.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.LZOvl.Decompress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Decompresses the given input using the LZ-Overlay compression scheme.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.LZOvl.Compress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Compresses the input using the LZ-Overlay compression scheme.
             </summary>
         </member>
         <member name="M:DSDecmp.Formats.LZOvl.CompressNormal(System.IO.Stream,System.Int64,System.IO.Stream)">
@@ -382,6 +589,26 @@
             <param name="blocklengths">The lengths of the compressed blocks, as gotten from GetOptimalCompressionLengths.</param>
             <returns>The 'optimal' length of the compressed part of the file.</returns>
         </member>
+        <member name="P:DSDecmp.Formats.LZOvl.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.LZOvl.Description">
+            <summary>
+            Gets a short description of this compression format (used in the program usage).
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.LZOvl.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.LZOvl.SupportsCompression">
+            <summary>
+            Gets if this format supports compressing a file.
+            </summary>
+        </member>
         <member name="P:DSDecmp.Formats.LZOvl.LookAhead">
             <summary>
             Sets the flag that determines if 'look-ahead'/DP should be used when compressing
@@ -389,22 +616,32 @@
             implementation.
             </summary>
         </member>
-        <member name="T:DSDecmp.NewProgram.Formats">
+        <member name="M:DSDecmp.NewestProgram.Compress(System.String[],DSDecmp.CompressionFormat)">
             <summary>
-            The formats allowed when compressing a file.
+            (Attempts to) Compress the given input to the given output, using the given format.
             </summary>
+            <param name="ioArgs">The I/O arguments from the program input.</param>
+            <param name="format">The desired format to compress with.</param>
         </member>
         <member name="M:DSDecmp.NewestProgram.ParseIOArguments(System.String[],System.Boolean,System.String[]@,System.String@,System.Boolean@)">
             <summary>
             Parses the IO arguments of the input.
             </summary>
             <param name="ioArgs">The arguments to parse.</param>
+            <param name="compress">If the arguments are used for compression. If not, decompression is assumed. (used for default output folder name)</param>
             <param name="inputFiles">The files to handle as input.</param>
             <param name="outputDir">The directory to save the handled files in. If this is null, 
             the files should be overwritten. If this does not exist, it is the output file 
             (the input may only contain one file if that si the case).</param>
             <param name="copyErrors">If files that cannot be handled (properly) should be copied to the output directory.</param>
             <returns>True iff parsing of the arguments succeeded.</returns>
+        </member>
+        <member name="M:DSDecmp.NewestProgram.GuessExtension(System.Byte[],System.String)">
+            <summary>
+            Guess the extension of a file by looking at the given magic bytes of a file.
+            If they are alphanumeric (without accents), they could indicate the type of file.
+            If no sensible extension could be found from the magic bytes, the given default extension is returned.
+            </summary>
         </member>
         <member name="M:DSDecmp.NewestProgram.Copy(System.String,System.String)">
             <summary>
@@ -504,11 +741,94 @@
             Gets the number of items in this queue.
             </summary>
         </member>
+        <member name="T:DSDecmp.Formats.Nitro.CompositeGBAFormat">
+            <summary>
+            A composite format with all formats supported natively by the GBA.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.CompositeGBAFormat.#ctor">
+            <summary>
+            Creates a new instance of the format composed of all native GBA compression formats.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.CompositeGBAFormat.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.CompositeGBAFormat.Description">
+            <summary>
+            Gets a short description of this compression format (used in the program usage).
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.CompositeGBAFormat.SupportsCompression">
+            <summary>
+            Gets if this format supports compressing a file.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.CompositeGBAFormat.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
+        <member name="T:DSDecmp.Formats.Nitro.CompositeNDSFormat">
+            <summary>
+            A composite format with all formats supported natively by the NDS (but not LZ-Overlay)
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.CompositeNDSFormat.#ctor">
+            <summary>
+            Creates a new instance of the format composed of all native NDS compression formats.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.CompositeNDSFormat.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.CompositeNDSFormat.Description">
+            <summary>
+            Gets a short description of this compression format (used in the program usage).
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.CompositeNDSFormat.SupportsCompression">
+            <summary>
+            Gets if this format supports compressing a file.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.CompositeNDSFormat.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
         <member name="T:DSDecmp.Formats.Nitro.Huffman">
             <summary>
             Compressor and decompressor for the Huffman format used in many of the games for the
             newer Nintendo consoles and handhelds.
             </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.Huffman.#ctor(DSDecmp.Formats.Nitro.Huffman.BlockSize)">
+            <summary>
+            Creates a new generic instance of the Huffman compression format.
+            </summary>
+            <param name="blockSize">The block size used.</param>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.Huffman.Decompress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            Decompresses the given stream, writing the decompressed data to the given output stream.
+            Assumes <code>Supports(instream)</code> returns <code>true</code>.
+            After this call, the input stream will be positioned at the end of the compressed stream,
+            or at the initial position + <code>inLength</code>, whichever comes first.
+            </summary>
+            <param name="instream">The stream to decompress. At the end of this method, the position
+            of this stream is directly after the compressed data.</param>
+            <param name="inLength">The length of the input data. Not necessarily all of the
+            input data may be read (if there is padding, for example), however never more than
+            this number of bytes is read from the input stream.</param>
+            <param name="outstream">The stream to write the decompressed data to.</param>
+            <returns>The length of the output data.</returns>
+            <exception cref="T:DSDecmp.NotEnoughDataException">When the given length of the input data
+            is not enough to properly decompress the input.</exception>
         </member>
         <member name="M:DSDecmp.Formats.Nitro.Huffman.GetLowest(DSDecmp.SimpleReversedPrioQueue{System.Int32,DSDecmp.Formats.Nitro.Huffman.HuffTreeNode},DSDecmp.SimpleReversedPrioQueue{System.Int32,DSDecmp.Formats.Nitro.Huffman.HuffTreeNode},System.Int32@)">
             <summary>
@@ -519,6 +839,26 @@
         <member name="P:DSDecmp.Formats.Nitro.Huffman.CompressBlockSize">
             <summary>
             Sets the block size used when using the Huffman format to compress.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.Huffman.SupportsCompression">
+            <summary>
+            Gets if this format supports compression. Always returns true.
+            </summary>
+        </member>
+        <member name="T:DSDecmp.Formats.Nitro.Huffman.BlockSize">
+            <summary>
+            The possible data sizes used in Huffman compression formats on the GBA/NDS.
+            </summary>
+        </member>
+        <member name="F:DSDecmp.Formats.Nitro.Huffman.BlockSize.FOURBIT">
+            <summary>
+            Each data block is four bits long.
+            </summary>
+        </member>
+        <member name="F:DSDecmp.Formats.Nitro.Huffman.BlockSize.EIGHTBIT">
+            <summary>
+            Each data block is eight bits long.
             </summary>
         </member>
         <member name="T:DSDecmp.Formats.Nitro.Huffman.HuffTreeNode">
@@ -551,6 +891,12 @@
             The child of this node at side 1
             </summary>
         </member>
+        <member name="F:DSDecmp.Formats.Nitro.Huffman.HuffTreeNode.index">
+            <summary>
+            The index of this node in the array for building the proper ordering.
+            If -1, this node has not yet been placed in the array.
+            </summary>
+        </member>
         <member name="M:DSDecmp.Formats.Nitro.Huffman.HuffTreeNode.#ctor(System.Byte,System.Boolean,DSDecmp.Formats.Nitro.Huffman.HuffTreeNode,DSDecmp.Formats.Nitro.Huffman.HuffTreeNode)">
             <summary>
             Manually creates a new node for a huffman tree.
@@ -571,6 +917,11 @@
             of the compressed file.</param>
             <param name="maxStreamPos">The indicated end of the huffman tree. If the stream is past
             this position, the tree is invalid.</param>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.Huffman.HuffTreeNode.ToString">
+            <summary>
+            Generates and returns a string-representation of the huffman tree starting at this node.
+            </summary>
         </member>
         <member name="P:DSDecmp.Formats.Nitro.Huffman.HuffTreeNode.Data">
             <summary>
@@ -620,9 +971,14 @@
             Calculates the size of the sub-tree with this node as root.
             </summary>
         </member>
-        <member name="P:DSDecmp.Formats.Nitro.Huffman.HuffTreeNode.PreOrderTraversal">
+        <member name="T:DSDecmp.Formats.Nitro.Huffman4">
             <summary>
-            Returns a seuqnce over the nodes of the sub-tree with this node as root in a pre-order fashion. (Root-Left-Right)
+            The Huffman compression scheme using 4-bit data blocks.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.Huffman4.#ctor">
+            <summary>
+            Creates a new instance of the 4-bit Huffman compression format.
             </summary>
         </member>
         <member name="M:DSDecmp.Formats.Nitro.Huffman4.Compress(System.IO.Stream,System.Int64,System.IO.Stream)">
@@ -634,6 +990,31 @@
             <param name="outstream">The stream to write the decompressed data to.</param>
             <returns>The size of the decompressed data.</returns>
         </member>
+        <member name="P:DSDecmp.Formats.Nitro.Huffman4.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.Huffman4.Description">
+            <summary>
+            Gets a short description of this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.Huffman4.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
+        <member name="T:DSDecmp.Formats.Nitro.Huffman8">
+            <summary>
+            The Huffman compression scheme using 8-bit data blocks.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.Huffman8.#ctor">
+            <summary>
+            Creates a new instance of the 4-bit Huffman compression format.
+            </summary>
+        </member>
         <member name="M:DSDecmp.Formats.Nitro.Huffman8.Compress(System.IO.Stream,System.Int64,System.IO.Stream)">
             <summary>
             Applies Huffman compression with a datablock size of 8 bits.
@@ -642,6 +1023,70 @@
             <param name="inLength">The length of the input stream.</param>
             <param name="outstream">The stream to write the decompressed data to.</param>
             <returns>The size of the decompressed data.</returns>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.Huffman8.Insert(DSDecmp.Formats.Nitro.Huffman.HuffTreeNode,DSDecmp.Formats.Nitro.Huffman.HuffTreeNode[],System.Int32)">
+            <summary>
+            Inserts the given node into the given array, in such a location that
+            the offset to both of its children is at most the given maximum, and as large as possible.
+            In order to do this, the contents of the array may be shifted to the right.
+            </summary>
+            <param name="node">The node to insert.</param>
+            <param name="array">The array to insert the node in.</param>
+            <param name="maxOffset">The maximum offset between parent and children.</param>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.Huffman8.ShiftRight(DSDecmp.Formats.Nitro.Huffman.HuffTreeNode[],System.Int32,System.Int32)">
+            <summary>
+            Shifts the node at the given index one to the right.
+            If the distance between parent and child becomes too large due to this shift, the parent is shifted as well.
+            </summary>
+            <param name="array">The array to shift the node in.</param>
+            <param name="idx">The index of the node to shift.</param>
+            <param name="maxOffset">The maximum distance between parent and children.</param>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.Huffman8.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.Huffman8.Description">
+            <summary>
+            Gets a short description of this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.Huffman8.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
+        <member name="T:DSDecmp.Formats.Nitro.HuffmanAny">
+            <summary>
+            Composite compression format representing both Huffman compression schemes.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.HuffmanAny.#ctor">
+            <summary>
+            Creates a new instance of the general Huffman compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.HuffmanAny.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.HuffmanAny.Description">
+            <summary>
+            Gets a short description of this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.HuffmanAny.SupportsCompression">
+            <summary>
+            Gets if this format supports compression. Always returns true.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.HuffmanAny.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
         </member>
     </members>
 </doc>

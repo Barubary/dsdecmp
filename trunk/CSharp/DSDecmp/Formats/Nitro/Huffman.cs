@@ -11,25 +11,66 @@ namespace DSDecmp.Formats.Nitro
     /// </summary>
     public abstract class Huffman : NitroCFormat
     {
-        public enum BlockSize : byte { FOURBIT = 0x24, EIGHTBIT = 0x28 }
+        #region Enum: BlockSize
+        /// <summary>
+        /// The possible data sizes used in Huffman compression formats on the GBA/NDS.
+        /// </summary>
+        public enum BlockSize : byte
+        {
+            /// <summary>
+            /// Each data block is four bits long.
+            /// </summary>
+            FOURBIT = 0x24,
+            /// <summary>
+            /// Each data block is eight bits long.
+            /// </summary>
+            EIGHTBIT = 0x28
+        }
+        #endregion
 
         /// <summary>
         /// Sets the block size used when using the Huffman format to compress.
         /// </summary>
         public BlockSize CompressBlockSize { get; set; }
 
+        /// <summary>
+        /// Gets if this format supports compression. Always returns true.
+        /// </summary>
         public override bool SupportsCompression
         {
             get { return true; }
         }
 
-        public Huffman(BlockSize blockSize)
+
+        #region Internal Constructor(BlockSize)
+        /// <summary>
+        /// Creates a new generic instance of the Huffman compression format.
+        /// </summary>
+        /// <param name="blockSize">The block size used.</param>
+        internal Huffman(BlockSize blockSize)
             : base((byte)blockSize)
         {
             this.CompressBlockSize = blockSize;
         }
+        #endregion
+
 
         #region Decompression method
+        /// <summary>
+        /// Decompresses the given stream, writing the decompressed data to the given output stream.
+        /// Assumes <code>Supports(instream)</code> returns <code>true</code>.
+        /// After this call, the input stream will be positioned at the end of the compressed stream,
+        /// or at the initial position + <code>inLength</code>, whichever comes first.
+        /// </summary>
+        /// <param name="instream">The stream to decompress. At the end of this method, the position
+        /// of this stream is directly after the compressed data.</param>
+        /// <param name="inLength">The length of the input data. Not necessarily all of the
+        /// input data may be read (if there is padding, for example), however never more than
+        /// this number of bytes is read from the input stream.</param>
+        /// <param name="outstream">The stream to write the decompressed data to.</param>
+        /// <returns>The length of the output data.</returns>
+        /// <exception cref="NotEnoughDataException">When the given length of the input data
+        /// is not enough to properly decompress the input.</exception>
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region GBATEK format specification
@@ -415,6 +456,9 @@ namespace DSDecmp.Formats.Nitro
             }
             #endregion
 
+            /// <summary>
+            /// Generates and returns a string-representation of the huffman tree starting at this node.
+            /// </summary>
             public override string ToString()
             {
                 if (this.isData)
@@ -431,23 +475,38 @@ namespace DSDecmp.Formats.Nitro
         #endregion
     }
 
-    public class Huffman4 : Huffman
+    /// <summary>
+    /// The Huffman compression scheme using 4-bit data blocks.
+    /// </summary>
+    public sealed class Huffman4 : Huffman
     {
+        /// <summary>
+        /// Gets a short string identifying this compression format.
+        /// </summary>
         public override string ShortFormatString
         {
             get { return "Huffman-4"; }
         }
 
+        /// <summary>
+        /// Gets a short description of this compression format.
+        /// </summary>
         public override string Description
         {
             get { return "Huffman compression scheme using 4-bit datablocks."; }
         }
 
+        /// <summary>
+        /// Gets the value that must be given on the command line in order to compress using this format.
+        /// </summary>
         public override string CompressionFlag
         {
             get { return "huff4"; }
         }
 
+        /// <summary>
+        /// Creates a new instance of the 4-bit Huffman compression format.
+        /// </summary>
         public Huffman4()
             : base(BlockSize.FOURBIT) { }
 
@@ -618,23 +677,38 @@ namespace DSDecmp.Formats.Nitro
         #endregion
     }
 
-    public class Huffman8 : Huffman
+    /// <summary>
+    /// The Huffman compression scheme using 8-bit data blocks.
+    /// </summary>
+    public sealed class Huffman8 : Huffman
     {
+        /// <summary>
+        /// Gets a short string identifying this compression format.
+        /// </summary>
         public override string ShortFormatString
         {
             get { return "Huffman-8"; }
         }
 
+        /// <summary>
+        /// Gets a short description of this compression format.
+        /// </summary>
         public override string Description
         {
             get { return "Huffman compression scheme using 8-bit datablocks."; }
         }
 
+        /// <summary>
+        /// Gets the value that must be given on the command line in order to compress using this format.
+        /// </summary>
         public override string CompressionFlag
         {
             get { return "huff8"; }
         }
 
+        /// <summary>
+        /// Creates a new instance of the 4-bit Huffman compression format.
+        /// </summary>
         public Huffman8()
             : base(BlockSize.EIGHTBIT) { }
 
@@ -950,26 +1024,44 @@ namespace DSDecmp.Formats.Nitro
         #endregion
     }
 
+    /// <summary>
+    /// Composite compression format representing both Huffman compression schemes.
+    /// </summary>
     public class HuffmanAny : CompositeFormat
     {
+        /// <summary>
+        /// Creates a new instance of the general Huffman compression format.
+        /// </summary>
         public HuffmanAny()
             : base(new Huffman4(), new Huffman8()) { }
 
+        /// <summary>
+        /// Gets a short string identifying this compression format.
+        /// </summary>
         public override string ShortFormatString
         {
             get { return "Huffman"; }
         }
 
+        /// <summary>
+        /// Gets a short description of this compression format.
+        /// </summary>
         public override string Description
         {
             get { return "Either the Huffman-4 or Huffman-8 format."; }
         }
 
+        /// <summary>
+        /// Gets if this format supports compression. Always returns true.
+        /// </summary>
         public override bool SupportsCompression
         {
             get { return true; }
         }
 
+        /// <summary>
+        /// Gets the value that must be given on the command line in order to compress using this format.
+        /// </summary>
         public override string CompressionFlag
         {
             get { return "huff"; }

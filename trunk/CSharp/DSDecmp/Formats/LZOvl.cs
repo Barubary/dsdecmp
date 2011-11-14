@@ -13,21 +13,33 @@ namespace DSDecmp.Formats
     /// </summary>
     public sealed class LZOvl : CompressionFormat
     {
+        /// <summary>
+        /// Gets a short string identifying this compression format.
+        /// </summary>
         public override string ShortFormatString
         {
             get { return "LZ-Ovl"; }
         }
 
+        /// <summary>
+        /// Gets a short description of this compression format (used in the program usage).
+        /// </summary>
         public override string Description
         {
             get { return "Reverse LZ format, mainly used in 'overlay' files of NDS games."; }
         }
 
+        /// <summary>
+        /// Gets the value that must be given on the command line in order to compress using this format.
+        /// </summary>
         public override string CompressionFlag
         {
             get { return "lzovl"; }
         }
 
+        /// <summary>
+        /// Gets if this format supports compressing a file.
+        /// </summary>
         public override bool SupportsCompression
         {
             get { return true; }
@@ -44,6 +56,10 @@ namespace DSDecmp.Formats
             set { lookAhead = value; }
         }
 
+        /// <summary>
+        /// Checks if the given aguments have the '-opt' option, which makes this format
+        /// compress using (near-)optimal compression instead of the original compression algorithm.
+        /// </summary>
         public override int ParseCompressionOptions(string[] args)
         {
             if (args.Length > 0)
@@ -56,6 +72,9 @@ namespace DSDecmp.Formats
         }
 
         #region Method: Supports(string file)
+        /// <summary>
+        /// Checks if this format supports decompressing the given file.
+        /// </summary>
         public override bool Supports(string file)
         {
             using (FileStream fstr = File.OpenRead(file))
@@ -70,6 +89,9 @@ namespace DSDecmp.Formats
         #endregion
 
         #region Method: Supports(Stream, long)
+        /// <summary>
+        /// Checks if this format supports decompressing the given input.
+        /// </summary>
         public override bool Supports(System.IO.Stream stream, long inLength)
         {
             // assume the 'inLength' does not include the 12 bytes at the end of arm9.bin
@@ -113,6 +135,9 @@ namespace DSDecmp.Formats
         #endregion
 
         #region Method: Decompress(string, string)
+        /// <summary>
+        /// Decompresses the given input file to the given output file using the LZ-Overlay compression format.
+        /// </summary>
         public override void Decompress(string infile, string outfile)
         {
             // make sure the output directory exists
@@ -133,6 +158,9 @@ namespace DSDecmp.Formats
         #endregion
 
         #region Decompression method
+        /// <summary>
+        /// Decompresses the given input using the LZ-Overlay compression scheme.
+        /// </summary>
         public override long Decompress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
         {
             #region Format description
@@ -325,6 +353,9 @@ namespace DSDecmp.Formats
         #endregion
 
         #region Compression method; delegates to CompressNormal
+        /// <summary>
+        /// Compresses the input using the LZ-Overlay compression scheme.
+        /// </summary>
         public override int Compress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
         {
             // don't bother trying to get the optimal not-compressed - compressed ratio for now.

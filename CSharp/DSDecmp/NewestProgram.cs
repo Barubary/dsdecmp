@@ -169,6 +169,9 @@ namespace DSDecmp
                     bool decompressed = false;
                     foreach (CompressionFormat format in formats)
                     {
+                        if (!format.SupportsDecompression)
+                            continue;
+
                         #region try to decompress using the current format
 
                         using (MemoryStream inStr = new MemoryStream(inputData),
@@ -262,8 +265,19 @@ namespace DSDecmp
         #endregion Method: Decompress
 
         #region Method: Compress
+        /// <summary>
+        /// (Attempts to) Compress the given input to the given output, using the given format.
+        /// </summary>
+        /// <param name="ioArgs">The I/O arguments from the program input.</param>
+        /// <param name="format">The desired format to compress with.</param>
         private static void Compress(string[] ioArgs, CompressionFormat format)
         {
+            if (!format.SupportsCompression)
+            {
+                Console.WriteLine("Cannot compress using " + format.ShortFormatString + "; compression is not supported.");
+                return;
+            }
+
             string[] inputFiles;
             string outputDir;
             bool copyErrors;
@@ -302,7 +316,11 @@ namespace DSDecmp
                                     outStr.WriteTo(output);
                                 }
                                 compressed = true;
-                                Console.WriteLine(format.ShortFormatString + "-compressed " + input + " to " + outputFile);
+                                if (format is CompositeFormat)
+                                    Console.Write((format as CompositeFormat).LastUsedCompressFormatString);
+                                else
+                                    Console.Write(format.ShortFormatString);
+                                Console.WriteLine("-compressed " + input + " to " + outputFile);
                             }
                         }
                         catch (Exception) { }
@@ -346,6 +364,7 @@ namespace DSDecmp
         /// Parses the IO arguments of the input.
         /// </summary>
         /// <param name="ioArgs">The arguments to parse.</param>
+        /// <param name="compress">If the arguments are used for compression. If not, decompression is assumed. (used for default output folder name)</param>
         /// <param name="inputFiles">The files to handle as input.</param>
         /// <param name="outputDir">The directory to save the handled files in. If this is null, 
         /// the files should be overwritten. If this does not exist, it is the output file 
@@ -452,6 +471,12 @@ namespace DSDecmp
         }
         #endregion ParseIOArguments
 
+        #region Method: GuessExtension(magic, defaultExt)
+        /// <summary>
+        /// Guess the extension of a file by looking at the given magic bytes of a file.
+        /// If they are alphanumeric (without accents), they could indicate the type of file.
+        /// If no sensible extension could be found from the magic bytes, the given default extension is returned.
+        /// </summary>
         private static string GuessExtension(byte[] magic, string defaultExt)
         {
             string ext = "";
@@ -469,6 +494,7 @@ namespace DSDecmp
                 return defaultExt;
             return ext;
         }
+        #endregion
 
         /// <summary>
         /// Copies the source file to the destination path.

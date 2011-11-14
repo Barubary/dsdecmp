@@ -11,28 +11,47 @@ namespace DSDecmp.Formats.Nitro
     /// </summary>
     public sealed class RLE : NitroCFormat
     {
+        /// <summary>
+        /// Gets a short string identifying this compression format.
+        /// </summary>
         public override string ShortFormatString
         {
             get { return "RLE"; }
         }
 
+        /// <summary>
+        /// Gets a short description of this compression format (used in the program usage).
+        /// </summary>
         public override string Description
         {
             get { return "Run-Length Encoding used in some modern Nintendo games."; }
         }
 
+        /// <summary>
+        /// Gets the value that must be given on the command line in order to compress using this format.
+        /// </summary>
         public override string CompressionFlag
         {
             get { return "rle"; }
         }
 
+        /// <summary>
+        /// Gets if this format supports compressing a file.
+        /// </summary>
         public override bool SupportsCompression
         {
             get { return true; }
         }
 
+        /// <summary>
+        /// Creates a new instance of the RLE compression format.
+        /// </summary>
         public RLE() : base(0x30) { }
 
+        #region Method: Decompress
+        /// <summary>
+        /// Decompresses the input using the RLE compression scheme.
+        /// </summary>
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             /*      
@@ -147,7 +166,12 @@ namespace DSDecmp.Formats.Nitro
 
             return decompressedSize;
         }
+        #endregion Decompress
 
+        #region Method: Compress
+        /// <summary>
+        /// Compresses the input using the RLE compression scheme.
+        /// </summary>
         public override int Compress(Stream instream, long inLength, Stream outstream)
         {
 
@@ -273,5 +297,6 @@ namespace DSDecmp.Formats.Nitro
             // the total compressed stream length is the compressed data length + the 4-byte header
             return compLen + 4;
         }
+        #endregion Compress
     }
 }

@@ -10,21 +10,33 @@ namespace DSDecmp.Formats.Nitro
     /// </summary>
     public sealed class LZ10 : NitroCFormat
     {
+        /// <summary>
+        /// Gets a short string identifying this compression format.
+        /// </summary>
         public override string ShortFormatString
         {
             get { return "LZ-10"; }
         }
 
+        /// <summary>
+        /// Gets a short description of this compression format (used in the program usage).
+        /// </summary>
         public override string Description
         {
             get { return "Common LZ-type compression used in many post-GBC Nintendo games."; }
         }
 
+        /// <summary>
+        /// Gets the value that must be given on the command line in order to compress using this format.
+        /// </summary>
         public override string CompressionFlag
         {
             get { return "lz10"; }
         }
 
+        /// <summary>
+        /// Gets if this format supports compressing a file.
+        /// </summary>
         public override bool SupportsCompression
         {
             get { return true; }
@@ -41,8 +53,15 @@ namespace DSDecmp.Formats.Nitro
             set { lookAhead = value; }
         }
 
+        /// <summary>
+        /// Creates a new instance of the LZ-10 compression format.
+        /// </summary>
         public LZ10() : base(0x10) { }
 
+        /// <summary>
+        /// Checks if the given aguments have the '-opt' option, which makes this format
+        /// compress using (near-)optimal compression instead of the original compression algorithm.
+        /// </summary>
         public override int ParseCompressionOptions(string[] args)
         {
             if (args.Length > 0)
@@ -201,6 +220,11 @@ namespace DSDecmp.Formats.Nitro
         #endregion
         
         #region Original Compress method
+        /// <summary>
+        /// Compresses the input using the 'original', unoptimized compression algorithm.
+        /// This algorithm should yield files that are the same as those found in the games.
+        /// (delegates to the optimized method if LookAhead is set)
+        /// </summary>
         public unsafe override int Compress(Stream instream, long inLength, Stream outstream)
         {
             // make sure the decompressed size fits in 3 bytes.

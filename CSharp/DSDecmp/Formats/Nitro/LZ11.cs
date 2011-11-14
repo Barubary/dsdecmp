@@ -11,21 +11,33 @@ namespace DSDecmp.Formats.Nitro
     /// </summary>
     public sealed class LZ11 : NitroCFormat
     {
+        /// <summary>
+        /// Gets a short string identifying this compression format.
+        /// </summary>
         public override string ShortFormatString
         {
             get { return "LZ-11"; }
         }
 
+        /// <summary>
+        /// Gets a short description of this compression format (used in the program usage).
+        /// </summary>
         public override string Description
         {
             get { return "Variant of the LZ-0x10 format to support longer repetitions."; }
         }
 
+        /// <summary>
+        /// Gets the value that must be given on the command line in order to compress using this format.
+        /// </summary>
         public override string CompressionFlag
         {
             get { return "lz11"; }
         }
 
+        /// <summary>
+        /// Gets if this format supports compressing a file.
+        /// </summary>
         public override bool SupportsCompression
         {
             get { return true; }
@@ -42,8 +54,15 @@ namespace DSDecmp.Formats.Nitro
             set { lookAhead = value; }
         }
 
+        /// <summary>
+        /// Creates a new instance of the LZ-11 compression format.
+        /// </summary>
         public LZ11() : base(0x11) { }
 
+        /// <summary>
+        /// Checks if the given aguments have the '-opt' option, which makes this format
+        /// compress using (near-)optimal compression instead of the original compression algorithm.
+        /// </summary>
         public override int ParseCompressionOptions(string[] args)
         {
             LookAhead = false;
@@ -57,6 +76,9 @@ namespace DSDecmp.Formats.Nitro
         }
 
         #region Decompression method
+        /// <summary>
+        /// Decompresses the input using the LZ-11 compression scheme.
+        /// </summary>
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region Format definition in NDSTEK style
@@ -268,6 +290,11 @@ namespace DSDecmp.Formats.Nitro
         #endregion
 
         #region Original compression method
+        /// <summary>
+        /// Compresses the input using the 'original', unoptimized compression algorithm.
+        /// This algorithm should yield files that are the same as those found in the games.
+        /// (delegates to the optimized method if LookAhead is set)
+        /// </summary>
         public unsafe override int Compress(Stream instream, long inLength, Stream outstream)
         {
             // make sure the decompressed size fits in 3 bytes.

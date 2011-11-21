@@ -14,19 +14,21 @@ namespace DSDecmp
         /// starting at oldPtr. Takes O(inLength * oldLength) = O(n^2) time.
         /// </summary>
         /// <param name="newPtr">The start of the data that needs to be compressed.</param>
-        /// <param name="newLength">The number of bytes that still need to be compressed.</param>
+        /// <param name="newLength">The number of bytes that still need to be compressed.
+        /// (or: the maximum number of bytes that _may_ be compressed into one block)</param>
         /// <param name="oldPtr">The start of the raw file.</param>
         /// <param name="oldLength">The number of bytes already compressed.</param>
         /// <param name="disp">The offset of the start of the longest block to refer to.</param>
+        /// <param name="minDisp">The minimum allowed value for 'disp'.</param>
         /// <returns>The length of the longest sequence of bytes that can be copied from the already decompressed data.</returns>
-        public static unsafe int GetOccurrenceLength(byte* newPtr, int newLength, byte* oldPtr, int oldLength, out int disp)
+        public static unsafe int GetOccurrenceLength(byte* newPtr, int newLength, byte* oldPtr, int oldLength, out int disp, int minDisp = 1)
         {
             disp = 0;
             if (newLength == 0)
                 return 0;
             int maxLength = 0;
             // try every possible 'disp' value (disp = oldLength - i)
-            for (int i = 0; i < oldLength - 1; i++)
+            for (int i = 0; i < oldLength - minDisp; i++)
             {
                 // work from the start of the old data to the end, to mimic the original implementation's behaviour
                 // (and going from start to end or from end to start does not influence the compression ratio anyway)
@@ -48,6 +50,10 @@ namespace DSDecmp
                 {
                     maxLength = currentLength;
                     disp = oldLength - i;
+
+                    // if we cannot do better anyway, stop trying.
+                    if (maxLength == newLength)
+                        break;
                 }
             }
             return maxLength;

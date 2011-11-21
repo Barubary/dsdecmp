@@ -29,8 +29,14 @@ namespace GameFormats
 
         public override bool SupportsCompression
         {
-            get { return false; }
+            get { return true; }
         }
+
+        private static bool lookAhead = false;
+        /// <summary>
+        /// Gets or sets if, when compressing using this format, the optimal compression scheme should be used.
+        /// </summary>
+        public static bool LookAhead { get { return lookAhead; } set { lookAhead = value; } }
 
         /*
          * An LZE / Le file consists of the following:
@@ -97,6 +103,10 @@ namespace GameFormats
         }
         #endregion
 
+        #region Method: Decompress(instream, inLength, outstream)
+        /// <summary>
+        /// Decompresses the given stream using the LZE/Le compression format.
+        /// </summary>
         public override long Decompress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
         {
             long readBytes = 0;
@@ -191,7 +201,7 @@ namespace GameFormats
                         }
                         #endregion
                     case 1:
-                        #region 1 -> compact LZ10-like format
+                        #region 1 -> compact LZ10/RLE-like format
                         {
                             #region Get length and displacement('disp') values from next byte
                             // there are < 2 bytes available when the end is at most 1 byte away
@@ -268,6 +278,7 @@ namespace GameFormats
                     default:
                         throw new Exception("BUG: Mask is not 2 bits long!");
                 }
+
                 outstream.Flush();
             }
 
@@ -281,22 +292,206 @@ namespace GameFormats
 
             return decompressedSize;
         }
+        #endregion
 
-        private int MaskRsh(int value, int mask)
+        /// <summary>
+        /// Checks if the given aguments have the '-opt' option, which makes this format
+        /// compress using (near-)optimal compression instead of the original compression algorithm.
+        /// </summary>
+        public override int ParseCompressionOptions(string[] args)
         {
-            int maskCopy = mask;
-            int masked = value & mask;
-            if (maskCopy == 0)
-                return masked;
-            while ((maskCopy & 1) == 0)
-            {
-                masked >>= 1;
-                maskCopy >>= 1;
-            }
-            return masked;
+            LookAhead = false;
+            if (args.Length > 0)
+                if (args[0] == "-opt")
+                {
+                    LookAhead = true;
+                    return 1;
+                }
+            return 0;
         }
 
-        public override int Compress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public unsafe override int Compress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        {
+            // block type 0: stores at most 3+0xF  = 0x12 = 18 bytes (in 2 bytes)
+            // block type 1: stores at most 2+0x3F = 0x41 = 65 bytes (in 1 byte)
+            // block type 2: 1 raw byte
+            // block type 3: 3 raw bytes
+
+            if (LookAhead)
+                return CompressWithLA(instream, inLength, outstream);
+
+
+            // save the input data in an array to prevent having to go back and forth in a file
+            byte[] indata = new byte[inLength];
+            int numReadBytes = instream.Read(indata, 0, (int)inLength);
+            if (numReadBytes != inLength)
+                throw new StreamTooShortException();
+
+            // write the compression head first
+            outstream.WriteByte((byte)'L');
+            outstream.WriteByte((byte)'e');
+            outstream.WriteByte((byte)(inLength & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
+            outstream.WriteByte((byte)((inLength >> 24) & 0xFF));
+
+            int compressedLength = 6;
+
+            fixed (byte* instart = &indata[0])
+            {
+                // we do need to buffer the output, as the first byte indicates which blocks are compressed.
+                // this version does not use a look-ahead, so we do not need to buffer more than 4 blocks at a time.
+                // (a block is at most 3 bytes long)
+                byte[] outbuffer = new byte[4 * 3 + 1];
+                outbuffer[0] = 0;
+                int bufferlength = 1, bufferedBlocks = 0;
+                int readBytes = 0;
+
+                int cacheByte = -1;
+
+                while (readBytes < inLength)
+                {
+                    #region If 4 blocks are bufferd, write them and reset the buffer
+                    // we can only buffer 4 blocks at a time.
+                    if (bufferedBlocks == 4)
+                    {
+                        outstream.Write(outbuffer, 0, bufferlength);
+                        compressedLength += bufferlength;
+                        // reset the buffer
+                        outbuffer[0] = 0;
+                        bufferlength = 1;
+                        bufferedBlocks = 0;
+                    }
+                    #endregion
+
+                    // type 0: 3 <= len <= 18; 5 <= disp <= 0x1004
+                    // type 1: 2 <= len <= 65; 1 <= disp <= 4
+                    // type 2: 1 raw byte
+                    // type 3: 3 raw bytes
+
+                    // check if we can compress it using type 1 first (only 1 byte-long block)
+                    int disp;
+                    int oldLength = Math.Min(readBytes, 0x1004);
+                    int length = LZUtil.GetOccurrenceLength(instart + readBytes, (int)Math.Min(inLength - readBytes, 65),
+                                                            instart + readBytes - oldLength, oldLength, out disp, 1);
+                    if (disp >= 1 && ((disp <= 4 && length >= 2) || (disp >= 5 && length >= 3)))
+                    {
+                        if (cacheByte >= 0)
+                        {
+                            // write a single raw byte block (the previous byte could not be the start of any compressed block)
+                            outbuffer[bufferlength++] = (byte)(cacheByte & 0xFF);
+                            outbuffer[0] |= (byte)(2 << (bufferedBlocks * 2));
+                            cacheByte = -1;
+                            bufferedBlocks++;
+                            // the block set may be full; just retry this iteration.
+                            continue;
+                        }
+                        if (disp >= 5)
+                        {
+                            #region compress using type 0
+
+                            // type 0: store len/disp in 2 bytes:
+                            // AB CD, with len = C + 3, disp = DAB + 5
+
+                            // make sure we do not try to compress more than fits into the block
+                            length = Math.Min(length, 0xF + 3);
+
+                            readBytes += length;
+
+                            outbuffer[bufferlength++] = (byte)((disp - 5) & 0xFF);
+                            outbuffer[bufferlength] = (byte)(((disp - 5) >> 8) & 0xF);
+                            outbuffer[bufferlength++] |= (byte)(((length - 3) & 0xF) << 4);
+
+                            #endregion
+                        }
+                        else // 1 <= disp <= 4
+                        {
+                            #region compress using type 1
+
+                            // type 1: store len/disp in 1 byte:
+                            // ABCDEFGH, wih len = ABCDEF + 2, disp = GH + 1
+
+                            readBytes += length;
+
+                            outbuffer[bufferlength] = (byte)(((length - 2) << 2) & 0xFC);
+                            outbuffer[bufferlength] |= (byte)((disp - 1) & 0x3);
+                            bufferlength++;
+
+                            outbuffer[0] |= (byte)(1 << (bufferedBlocks * 2));
+
+                            #endregion
+                        }
+                    }
+                    else
+                    {
+                        if (cacheByte < 0)
+                        {
+                            // first fail? remember byte, try to compress starting at next byte
+                            cacheByte = *(instart + (readBytes++));
+                            continue;
+                        }
+                        else
+                        {
+                            // 2 consecutive fails -> store 3 raw bytes (type 3) if possible.
+                            if (inLength - readBytes >= 2)
+                            {
+                                outbuffer[bufferlength++] = (byte)(cacheByte & 0xFF);
+                                outbuffer[bufferlength++] = *(instart + (readBytes++));
+                                outbuffer[bufferlength++] = *(instart + (readBytes++));
+                                outbuffer[0] |= (byte)(3 << (bufferedBlocks * 2));
+                                cacheByte = -1;
+                            }
+                            else
+                            {
+                                // there are only two bytes remaining (incl. the cched byte)
+                                // so write the cached byte first as single raw byte.
+                                // keep the next/last byte as new cache, since the block buffer may be full.
+                                outbuffer[bufferlength++] = (byte)(cacheByte & 0xFF);
+                                outbuffer[0] |= (byte)(2 << (bufferedBlocks * 2));
+                                cacheByte = *(instart + (readBytes++));
+                            }
+                        }
+                    }
+                    
+                    bufferedBlocks++;
+                }
+
+                // there may be one cache-byte left.
+                if (cacheByte >= 0)
+                {
+                    // if the current set of blocks is full, empty it first
+                    if (bufferedBlocks == 4)
+                    {
+                        #region empty block buffer
+
+                        outstream.Write(outbuffer, 0, bufferlength);
+                        compressedLength += bufferlength;
+                        // reset the buffer
+                        outbuffer[0] = 0;
+                        bufferlength = 1;
+                        bufferedBlocks = 0;
+
+                        #endregion
+                    }
+
+                    outbuffer[bufferlength++] = (byte)(cacheByte & 0xFF);
+                    cacheByte = -1;
+                    outbuffer[0] |= (byte)(2 << (bufferedBlocks * 2));
+                    bufferedBlocks++;
+                }
+
+                // copy any remaining blocks to the output
+                if (bufferedBlocks > 0)
+                {
+                    outstream.Write(outbuffer, 0, bufferlength);
+                    compressedLength += bufferlength;
+                }
+            }
+
+            return compressedLength;
+        }
+
+        private unsafe int CompressWithLA(Stream instream, long inLength, Stream outstream)
         {
             throw new NotImplementedException();
         }

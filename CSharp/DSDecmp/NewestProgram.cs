@@ -11,7 +11,7 @@ namespace DSDecmp
     class NewestProgram
     {
 #if DEBUG
-        public static string PluginFolder = "../../../PluginDistro/Debug";
+        public static string PluginFolder = "./Plugins/Debug";
 #else
         public static string PluginFolder = "./Plugins";
 #endif
@@ -299,7 +299,6 @@ namespace DSDecmp
                         inputData = new byte[inStream.Length];
                         inStream.Read(inputData, 0, inputData.Length);
                     }
-                    bool compressed = false;
 
                     #region try to compress
 
@@ -315,7 +314,6 @@ namespace DSDecmp
                                 {
                                     outStr.WriteTo(output);
                                 }
-                                compressed = true;
                                 if (format is CompositeFormat)
                                     Console.Write((format as CompositeFormat).LastUsedCompressFormatString);
                                 else
@@ -323,24 +321,28 @@ namespace DSDecmp
                                 Console.WriteLine("-compressed " + input + " to " + outputFile);
                             }
                         }
-                        catch (Exception) { }
+                        catch (Exception ex)
+                        {
+                            #region copy or print and continue
+
+                            if (copyErrors)
+                            {
+                                Copy(input, outputFile);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Could not " + format.ShortFormatString + "-compress " + input + ";");
+                                Console.WriteLine(ex.Message);
+#if DEBUG
+                                Console.WriteLine(ex.StackTrace);
+#endif
+                            }
+
+                            #endregion
+                        }
                     }
 
                     #endregion
-
-                    if (!compressed)
-                    {
-                        #region copy or print and continue
-
-                        if (copyErrors)
-                        {
-                            Copy(input, outputFile);
-                        }
-                        else
-                            Console.WriteLine("Could not " + format.ShortFormatString + "-compress " + input + ".");
-
-                        #endregion
-                    }
                 }
                 catch (FileNotFoundException)
                 {

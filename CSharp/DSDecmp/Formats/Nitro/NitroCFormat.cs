@@ -18,6 +18,8 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// The maximum allowed size of the decompressed file (plaintext size) allowed for Nitro
         /// Decompressors. Only used when SkipLargePlaintexts = true.
+        /// If the expected plaintext size is larger that this, the 'Supports' method will partially
+        /// decompress the data to check if the file is OK.
         /// </summary>
         public static int MaxPlaintextSize = 0x180000;
 
@@ -59,7 +61,24 @@ namespace DSDecmp.Formats.Nitro
                     stream.Read(sizeBytes, 0, 4);
                     outSize = (int)IOUtils.ToNDSu32(sizeBytes, 0);
                 }
-                return outSize <= MaxPlaintextSize;
+                if (outSize <= MaxPlaintextSize)
+                    return true;
+
+                try
+                {
+                    stream.Position = startPosition;
+                    this.Decompress(stream, Math.Min(Math.Min(inLength, 0x80000), MaxPlaintextSize), new System.IO.MemoryStream());
+                    // we expect a NotEnoughDataException, since we're giving the decompressor only part of the file.
+                    return false;
+                }
+                catch (NotEnoughDataException)
+                {
+                    return true;
+                }
+                catch (Exception)
+                {
+                    return false;
+                }
             }
             finally
             {

@@ -56,6 +56,7 @@
     <Compile Include="Formats\Nitro\LZ10.cs" />
     <Compile Include="Formats\Nitro\LZ11.cs" />
     <Compile Include="Formats\Nitro\NitroCFormat.cs" />
+    <Compile Include="Formats\Nitro\NullCompression.cs" />
     <Compile Include="Formats\Nitro\RLE.cs" />
     <Compile Include="NewestProgram.cs" />
     <Compile Include="TestProgram.cs" />

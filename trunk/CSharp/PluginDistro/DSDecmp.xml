@@ -257,7 +257,7 @@
         </member>
         <member name="M:DSDecmp.Formats.Nitro.NitroCFormat.Supports(System.IO.Stream,System.Int64)">
             <summary>
-            Checks if the first four bytes match the format used in nitro compression formats.
+            Checks if the first four (or eight) bytes match the format used in nitro compression formats.
             </summary>
         </member>
         <member name="T:DSDecmp.Formats.CompositeFormat">
@@ -1086,6 +1086,52 @@
             </summary>
         </member>
         <member name="P:DSDecmp.Formats.Nitro.HuffmanAny.CompressionFlag">
+            <summary>
+            Gets the value that must be given on the command line in order to compress using this format.
+            </summary>
+        </member>
+        <member name="T:DSDecmp.Formats.Nitro.NullCompression">
+            <summary>
+            'Compression' format without any compression whatsoever.
+            Compression using this format will only prepend 0x00 plus the original file size to the file.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.NullCompression.#ctor">
+            <summary>
+            Creates a new instance of the NULL-compression format.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.NullCompression.Supports(System.IO.Stream,System.Int64)">
+            <summary>
+            Checks if the given stream is (or could be) 'compressed' using the NULL compression format.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.NullCompression.Decompress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            'Decompresses' the given input stream using the NULL format.
+            </summary>
+        </member>
+        <member name="M:DSDecmp.Formats.Nitro.NullCompression.Compress(System.IO.Stream,System.Int64,System.IO.Stream)">
+            <summary>
+            'Compresses' the given input stream using the NULL format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.NullCompression.ShortFormatString">
+            <summary>
+            Gets a short string identifying this compression format.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.NullCompression.Description">
+            <summary>
+            Gets a short description of this compression format (used in the program usage).
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.NullCompression.SupportsCompression">
+            <summary>
+            Gets if this format supports compressing a file.
+            </summary>
+        </member>
+        <member name="P:DSDecmp.Formats.Nitro.NullCompression.CompressionFlag">
             <summary>
             Gets the value that must be given on the command line in order to compress using this format.
             </summary>

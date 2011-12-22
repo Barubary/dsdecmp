@@ -8,7 +8,7 @@ using DSDecmp.Formats.Nitro;
 
 namespace DSDecmp
 {
-    class NewestProgram
+    public class NewestProgram
     {
 #if DEBUG
         public static string PluginFolder = "./Plugins/Debug";
@@ -177,7 +177,7 @@ namespace DSDecmp
                         using (MemoryStream inStr = new MemoryStream(inputData),
                                             outStr = new MemoryStream())
                         {
-                            if (!format.Supports(inStr, input.Length))
+                            if (!format.Supports(inStr, inputData.Length))
                                 continue;
                             try
                             {
@@ -549,9 +549,12 @@ namespace DSDecmp
             yield return new Huffman4();
             yield return new Huffman8();
             yield return new RLE();
+            yield return new NullCompression();
             if (alsoCompositeFormats)
             {
-                
+                yield return new HuffmanAny();
+                yield return new CompositeGBAFormat();
+                yield return new CompositeNDSFormat();
             }
         }
         /// <summary>

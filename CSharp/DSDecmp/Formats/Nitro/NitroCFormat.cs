@@ -39,7 +39,7 @@ namespace DSDecmp.Formats.Nitro
         }
 
         /// <summary>
-        /// Checks if the first four bytes match the format used in nitro compression formats.
+        /// Checks if the first four (or eight) bytes match the format used in nitro compression formats.
         /// </summary>
         public override bool Supports(System.IO.Stream stream, long inLength)
         {

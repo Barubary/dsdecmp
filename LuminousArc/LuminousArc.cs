@@ -1,10 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using DSDecmp;
+using DSDecmp.Exceptions;
+using DSDecmp.Formats;
+using DSDecmp.Utils;
 
-namespace GameFormats
+namespace LuminousArc
 {
     /// <summary>
     /// Compressor/decompressor for the LZE format found in Luminous Arc games. Format specification by Roger Pepitone; http://pastebin.com/qNgSB2f9
@@ -59,7 +59,7 @@ namespace GameFormats
             -- 2 bytes BYTE1 BYTE2: Write (3 + (BYTE2 >> 4)) bytes from
                                     back (5 + (BYTE1 | ((BYTE2 & 0xf) << 8))) to output
             - If its type is 1:
-            -- 1 byte BYTE1:  Write (2 + (BYTE >> 2)) bytes from 
+            -- 1 byte BYTE1:  Write (2 + (BYTE >> 2)) bytes from
                               back (1 + (BYTE & 3)) to output
             - If its type is 2:
             -- 1 byte: (copied to output stream)
@@ -75,7 +75,7 @@ namespace GameFormats
         /// Determines if this format may potentially be used to decompress the given stream.
         /// Does not guarantee success when returning true, but does guarantee failure when returning false.
         /// </summary>
-        public override bool Supports(System.IO.Stream stream, long inLength)
+        public override bool Supports(Stream stream, long inLength)
         {
             long streamStart = stream.Position;
             try
@@ -107,7 +107,7 @@ namespace GameFormats
         /// <summary>
         /// Decompresses the given stream using the LZE/Le compression format.
         /// </summary>
-        public override long Decompress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             long readBytes = 0;
 
@@ -310,7 +310,7 @@ namespace GameFormats
             return 0;
         }
 
-        public unsafe override int Compress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public unsafe override int Compress(Stream instream, long inLength, Stream outstream)
         {
             // block type 0: stores at most 3+0xF  = 0x12 = 18 bytes (in 2 bytes)
             // block type 1: stores at most 2+0x3F = 0x41 = 65 bytes (in 1 byte)
@@ -452,7 +452,7 @@ namespace GameFormats
                             }
                         }
                     }
-                    
+
                     bufferedBlocks++;
                 }
 
@@ -491,7 +491,7 @@ namespace GameFormats
             return compressedLength;
         }
 
-        private unsafe int CompressWithLA(Stream instream, long inLength, Stream outstream)
+        private int CompressWithLA(Stream instream, long inLength, Stream outstream)
         {
             throw new NotImplementedException();
         }

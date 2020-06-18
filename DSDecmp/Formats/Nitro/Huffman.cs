@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
+using DSDecmp.Exceptions;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -50,7 +51,7 @@ namespace DSDecmp.Formats.Nitro
         internal Huffman(BlockSize blockSize)
             : base((byte)blockSize)
         {
-            this.CompressBlockSize = blockSize;
+            CompressBlockSize = blockSize;
         }
         #endregion
 
@@ -98,7 +99,7 @@ namespace DSDecmp.Formats.Nitro
             long readBytes = 0;
 
             byte type = (byte)instream.ReadByte();
-            if (type != (byte)this.CompressBlockSize)
+            if (type != (byte)CompressBlockSize)
                 throw new InvalidDataException("The provided stream is not a valid Huffman "
                             + "compressed stream (invalid type 0x" + type.ToString("X") + "); unknown block size.");
             byte[] sizeBytes = new byte[3];
@@ -122,7 +123,7 @@ namespace DSDecmp.Formats.Nitro
                 throw new InvalidDataException("The stream is too short to contain a Huffman tree.");
 
             treeSize = (treeSize + 1) * 2;
-            
+
             if (readBytes + treeSize >= inLength)
                 throw new InvalidDataException("The Huffman tree is too large for the given input stream.");
 
@@ -179,7 +180,7 @@ namespace DSDecmp.Formats.Nitro
                 #endregion
 
                 #region write the data in the current node (when possible)
-                switch (this.CompressBlockSize)
+                switch (CompressBlockSize)
                 {
                     case BlockSize.EIGHTBIT:
                         {
@@ -207,7 +208,7 @@ namespace DSDecmp.Formats.Nitro
                             break;
                         }
                     default:
-                        throw new Exception("Unknown block size " + this.CompressBlockSize.ToString());
+                        throw new Exception("Unknown block size " + CompressBlockSize.ToString());
                 }
                 #endregion
 
@@ -281,8 +282,8 @@ namespace DSDecmp.Formats.Nitro
             {
                 get
                 {
-                    if (!this.isFilled) throw new NullReferenceException("Reference to an undefined node in the huffman tree.");
-                    return this.data;
+                    if (!isFilled) throw new NullReferenceException("Reference to an undefined node in the huffman tree.");
+                    return data;
                 }
             }
             /// <summary>
@@ -292,7 +293,7 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// Returns true if this node represents data.
             /// </summary>
-            public bool IsData { get { return this.isData; } }
+            public bool IsData { get { return isData; } }
             #endregion
 
             #region Field & Properties: Children & Parent
@@ -303,7 +304,7 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// The child of this node at side 0
             /// </summary>
-            public HuffTreeNode Child0 { get { return this.child0; } }
+            public HuffTreeNode Child0 { get { return child0; } }
             /// <summary>
             /// The child of this node at side 1
             /// </summary>
@@ -311,7 +312,7 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// The child of this node at side 1
             /// </summary>
-            public HuffTreeNode Child1 { get { return this.child1; } }
+            public HuffTreeNode Child1 { get { return child1; } }
             /// <summary>
             /// The parent node of this node.
             /// </summary>
@@ -319,11 +320,11 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// Determines if this is the Child0 of the parent node. Assumes there is a parent.
             /// </summary>
-            public bool IsChild0 { get { return this.Parent.child0 == this; } }
+            public bool IsChild0 { get { return Parent.child0 == this; } }
             /// <summary>
             /// Determines if this is the Child1 of the parent node. Assumes there is a parent.
             /// </summary>
-            public bool IsChild1 { get { return this.Parent.child1 == this; } }
+            public bool IsChild1 { get { return Parent.child1 == this; } }
             #endregion
 
             #region Field & Property: Depth
@@ -334,15 +335,15 @@ namespace DSDecmp.Formats.Nitro
             /// </summary>
             public int Depth
             {
-                get { return this.depth; }
+                get { return depth; }
                 set
                 {
-                    this.depth = value;
+                    depth = value;
                     // recursively set the depth of the child nodes.
-                    if (!this.isData)
+                    if (!isData)
                     {
-                        this.child0.Depth = this.depth + 1;
-                        this.child1.Depth = this.depth + 1;
+                        child0.Depth = depth + 1;
+                        child1.Depth = depth + 1;
                     }
                 }
             }
@@ -356,9 +357,9 @@ namespace DSDecmp.Formats.Nitro
             {
                 get
                 {
-                    if (this.IsData)
+                    if (IsData)
                         return 1;
-                    return 1 + this.child0.Size + this.child1.Size;
+                    return 1 + child0.Size + child1.Size;
                 }
             }
             #endregion
@@ -383,7 +384,7 @@ namespace DSDecmp.Formats.Nitro
                 this.isData = isData;
                 this.child0 = child0;
                 this.child1 = child1;
-                this.isFilled = true;
+                isFilled = true;
                 if (!isData)
                 {
                     this.child0.Parent = this;
@@ -420,22 +421,22 @@ namespace DSDecmp.Formats.Nitro
                 if (stream.Position >= maxStreamPos)
                 {
                     // this happens when part of the tree is unused.
-                    this.isFilled = false;
+                    isFilled = false;
                     return;
                 }
-                this.isFilled = true;
+                isFilled = true;
                 int readData = stream.ReadByte();
                 if (readData < 0)
                     throw new StreamTooShortException();
-                this.data = (byte)readData;
+                data = (byte)readData;
 
                 this.isData = isData;
 
                 if (!this.isData)
                 {
-                    int offset = this.data & 0x3F;
-                    bool zeroIsData = (this.data & 0x80) > 0;
-                    bool oneIsData = (this.data & 0x40) > 0;
+                    int offset = data & 0x3F;
+                    bool zeroIsData = (data & 0x80) > 0;
+                    bool oneIsData = (data & 0x40) > 0;
 
                     // off AND NOT 1 == off XOR (off AND 1)
                     long zeroRelOffset = (relOffset ^ (relOffset & 1)) + offset * 2 + 2;
@@ -444,11 +445,11 @@ namespace DSDecmp.Formats.Nitro
                     // position the stream right before the 0-node
                     stream.Position += (zeroRelOffset - relOffset) - 1;
                     // read the 0-node
-                    this.child0 = new HuffTreeNode(stream, zeroIsData, zeroRelOffset, maxStreamPos);
-                    this.child0.Parent = this;
+                    child0 = new HuffTreeNode(stream, zeroIsData, zeroRelOffset, maxStreamPos);
+                    child0.Parent = this;
                     // the 1-node is directly behind the 0-node
-                    this.child1 = new HuffTreeNode(stream, oneIsData, zeroRelOffset + 1, maxStreamPos);
-                    this.child1.Parent = this;
+                    child1 = new HuffTreeNode(stream, oneIsData, zeroRelOffset + 1, maxStreamPos);
+                    child1.Parent = this;
 
                     // reset the stream position to right behind this node's data
                     stream.Position = currStreamPos;
@@ -461,13 +462,13 @@ namespace DSDecmp.Formats.Nitro
             /// </summary>
             public override string ToString()
             {
-                if (this.isData)
+                if (isData)
                 {
-                    return "<" + this.data.ToString("X2") + ">";
+                    return $"<{data:X2}>";
                 }
                 else
                 {
-                    return "[" + this.child0.ToString() + "," + this.child1.ToString() + "]";
+                    return $"[{child0},{child1}]";
                 }
             }
 
@@ -556,10 +557,9 @@ namespace DSDecmp.Formats.Nitro
             while (leafQueue.Count + nodeQueue.Count > 1)
             {
                 // get the two nodes with the lowest priority.
-                HuffTreeNode one = null, two = null;
                 int onePrio, twoPrio;
-                one = GetLowest(leafQueue, nodeQueue, out onePrio);
-                two = GetLowest(leafQueue, nodeQueue, out twoPrio);
+                HuffTreeNode one = GetLowest(leafQueue, nodeQueue, out onePrio);
+                HuffTreeNode two = GetLowest(leafQueue, nodeQueue, out twoPrio);
 
                 // give those two a common parent, and put that node in the node queue
                 HuffTreeNode newNode = new HuffTreeNode(0, false, one, two);
@@ -790,10 +790,10 @@ namespace DSDecmp.Formats.Nitro
 
             // use a breadth-first traversal to store the tree, such that we do not need to store/calculate the size of each sub-tree.
             // NO! BF results in an ordering that may overflow the offset field.
-            
+
             // find the BF order of all nodes that have two leaves as children. We're going to insert them in an array in reverse BF order,
             // inserting the parent whenever both children have been inserted.
-            
+
             LinkedList<HuffTreeNode> leafStemQueue = new LinkedList<HuffTreeNode>();
 
             #region fill the leaf queue; first->last will be reverse BF

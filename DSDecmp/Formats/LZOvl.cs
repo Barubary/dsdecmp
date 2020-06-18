@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.IO;
+using DSDecmp.Exceptions;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats
 {
@@ -77,14 +77,12 @@ namespace DSDecmp.Formats
         /// </summary>
         public override bool Supports(string file)
         {
-            using (FileStream fstr = File.OpenRead(file))
-            {
-                long fLength = fstr.Length;
-                // arm9.bin is special in the sense that the last 12 bytes should/can be ignored.
-                if (Path.GetFileName(file) == "arm9.bin")
-                    fLength -= 0xC;
-                return this.Supports(fstr, fLength);
-            }
+            using FileStream fstr = File.OpenRead(file);
+            long fLength = fstr.Length;
+            // arm9.bin is special in the sense that the last 12 bytes should/can be ignored.
+            if (Path.GetFileName(file) == "arm9.bin")
+                fLength -= 0xC;
+            return Supports(fstr, fLength);
         }
         #endregion
 
@@ -92,7 +90,7 @@ namespace DSDecmp.Formats
         /// <summary>
         /// Checks if this format supports decompressing the given input.
         /// </summary>
-        public override bool Supports(System.IO.Stream stream, long inLength)
+        public override bool Supports(Stream stream, long inLength)
         {
             // assume the 'inLength' does not include the 12 bytes at the end of arm9.bin
 
@@ -141,19 +139,17 @@ namespace DSDecmp.Formats
         public override void Decompress(string infile, string outfile)
         {
             // make sure the output directory exists
-            string outDirectory = Path.GetDirectoryName(outfile);
+            string outDirectory = Path.GetDirectoryName(outfile) ?? throw new ArgumentException($"Parameter should not be path root", nameof(outfile));
             if (!Directory.Exists(outDirectory))
                 Directory.CreateDirectory(outDirectory);
             // open the two given files, and delegate to the format-specific code.
-            using (FileStream inStream = new FileStream(infile, FileMode.Open),
-                             outStream = new FileStream(outfile, FileMode.Create))
-            {
-                long fLength = inStream.Length;
-                // arm9.bin needs special attention
-                if (Path.GetFileName(infile) == "arm9.bin")
-                    fLength -= 0xC;
-                this.Decompress(inStream, fLength, outStream);
-            }
+            using FileStream inStream = new FileStream(infile, FileMode.Open),
+                outStream = new FileStream(outfile, FileMode.Create);
+            long fLength = inStream.Length;
+            // arm9.bin needs special attention
+            if (Path.GetFileName(infile) == "arm9.bin")
+                fLength -= 0xC;
+            Decompress(inStream, fLength, outStream);
         }
         #endregion
 
@@ -161,7 +157,7 @@ namespace DSDecmp.Formats
         /// <summary>
         /// Decompresses the given input using the LZ-Overlay compression scheme.
         /// </summary>
-        public override long Decompress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region Format description
             // Overlay LZ compression is basically just LZ-0x10 compression.
@@ -173,14 +169,14 @@ namespace DSDecmp.Formats
              * u24 compressedLength; // can be less than file size (w/o header). If so, the rest of the file is uncompressed.
              *                       // may also be the file size
              * u8[headerSize-8] padding; // 0xFF-s
-             * 
+             *
              * 0x10-like-compressed data follows (without the usual 4-byte header).
              * The only difference is that 2 should be added to the DISP value in compressed blocks
              * to get the proper value.
              * the u32 and u24 are read most significant byte first.
              * if extraSize is 0, there is no headerSize, decompressedLength or padding.
              * the data starts immediately, and is uncompressed.
-             * 
+             *
              * arm9.bin has 3 extra u32 values at the 'start' (ie: end of the file),
              * which may be ignored. (and are ignored here) These 12 bytes also should not
              * be included in the computation of the output size.
@@ -198,9 +194,9 @@ namespace DSDecmp.Formats
             {
                 instream.Read(buffer, 0, 4);
             }
-            catch (System.IO.EndOfStreamException)
+            catch (EndOfStreamException)
             {
-                // since we're immediately checking the end of the stream, 
+                // since we're immediately checking the end of the stream,
                 // this is the only location where we have to check for an EOS to occur.
                 throw new StreamTooShortException();
             }
@@ -356,7 +352,7 @@ namespace DSDecmp.Formats
         /// <summary>
         /// Compresses the input using the LZ-Overlay compression scheme.
         /// </summary>
-        public override int Compress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public override int Compress(Stream instream, long inLength, Stream outstream)
         {
             // don't bother trying to get the optimal not-compressed - compressed ratio for now.
             // Either compress fully or don't compress (as the format cannot handle decompressed
@@ -372,7 +368,7 @@ namespace DSDecmp.Formats
 
             MemoryStream inMemStream = new MemoryStream(indata);
             MemoryStream outMemStream = new MemoryStream();
-            int compressedLength = this.CompressNormal(inMemStream, inLength, outMemStream);
+            int compressedLength = CompressNormal(inMemStream, inLength, outMemStream);
 
             int totalCompFileLength = (int)outMemStream.Length + 8;
             // make the file 4-byte aligned with padding in the header
@@ -561,9 +557,9 @@ namespace DSDecmp.Formats
 
                 // get the optimal choices for len and disp
                 int[] lengths, disps;
-                this.GetOptimalCompressionLengths(instart, indata.Length, out lengths, out disps);
+                GetOptimalCompressionLengths(instart, indata.Length, out lengths, out disps);
 
-                int optCompressionLength = this.GetOptimalCompressionPartLength(lengths);
+                int optCompressionLength = GetOptimalCompressionPartLength(lengths);
 
                 while (readBytes < optCompressionLength)
                 {

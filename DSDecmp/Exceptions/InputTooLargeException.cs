@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace DSDecmp
+namespace DSDecmp.Exceptions
 {
     /// <summary>
     /// An exception indicating that the file cannot be compressed, because the decompressed size

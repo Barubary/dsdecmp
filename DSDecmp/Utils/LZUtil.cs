@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace DSDecmp
+﻿namespace DSDecmp.Utils
 {
     /// <summary>
     /// Utility class for compression using LZ-like compression schemes.

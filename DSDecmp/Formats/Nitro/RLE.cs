@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.IO;
+using DSDecmp.Exceptions;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -54,7 +55,7 @@ namespace DSDecmp.Formats.Nitro
         /// </summary>
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
-            /*      
+            /*
                 Data header (32bit)
                     Bit 0-3   Reserved
                     Bit 4-7   Compressed type (must be 3 for run-length)
@@ -69,7 +70,7 @@ namespace DSDecmp.Formats.Nitro
             long readBytes = 0;
 
             byte type = (byte)instream.ReadByte();
-            if (type != base.magicByte)
+            if (type != magicByte)
                 throw new InvalidDataException("The provided stream is not a valid RLE "
                             + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
@@ -137,9 +138,9 @@ namespace DSDecmp.Formats.Nitro
                     // limit the amount of bytes read by the indicated number of bytes available
                     if (readBytes + length > inLength)
                         tryReadLength = (int)(inLength - readBytes);
-                    
+
                     byte[] data = new byte[length];
-                    int readLength = instream.Read(data, 0, (int)tryReadLength);
+                    int readLength = instream.Read(data, 0, tryReadLength);
                     readBytes += readLength;
                     outstream.Write(data, 0, readLength);
                     currentOutSize += readLength;

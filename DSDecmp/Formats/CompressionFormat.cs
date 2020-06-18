@@ -1,9 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.IO;
+﻿using System.IO;
+using DSDecmp.Exceptions;
 
-namespace DSDecmp
+namespace DSDecmp.Formats
 {
     /// <summary>
     /// Base class for all compression formats.
@@ -22,10 +20,8 @@ namespace DSDecmp
         public virtual bool Supports(string file)
         {
             // open the file, and delegate to the decompressor-specific code.
-            using (FileStream fstr = new FileStream(file, FileMode.Open))
-            {
-                return this.Supports(fstr, fstr.Length);
-            }
+            using FileStream fstr = new FileStream(file, FileMode.Open);
+            return Supports(fstr, fstr.Length);
         }
 
         /// <summary>
@@ -56,11 +52,9 @@ namespace DSDecmp
             if (!Directory.Exists(outDirectory))
                 Directory.CreateDirectory(outDirectory);
             // open the two given files, and delegate to the format-specific code.
-            using (FileStream inStream = new FileStream(infile, FileMode.Open),
-                             outStream = new FileStream(outfile, FileMode.Create))
-            {
-                this.Decompress(inStream, inStream.Length, outStream);
-            }
+            using FileStream inStream = new FileStream(infile, FileMode.Open),
+                outStream = new FileStream(outfile, FileMode.Create);
+            Decompress(inStream, inStream.Length, outStream);
         }
 
         /// <summary>
@@ -94,11 +88,9 @@ namespace DSDecmp
             if (!Directory.Exists(outDirectory))
                 Directory.CreateDirectory(outDirectory);
             // open the proper Streams, and delegate to the format-specific code.
-            using (FileStream inStream = File.Open(infile, FileMode.Open),
-                             outStream = File.Create(outfile))
-            {
-                return this.Compress(inStream, inStream.Length, outStream);
-            }
+            using FileStream inStream = File.Open(infile, FileMode.Open),
+                outStream = File.Create(outfile);
+            return Compress(inStream, inStream.Length, outStream);
         }
 
         /// <summary>

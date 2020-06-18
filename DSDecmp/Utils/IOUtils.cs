@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
 using System.IO;
+using System.Reflection;
+using DSDecmp.Formats;
 
-namespace DSDecmp
+namespace DSDecmp.Utils
 {
     /// <summary>
     /// Class for I/O-related utility methods.
@@ -37,10 +37,10 @@ namespace DSDecmp
         /// <returns>The indicated 4 bytes converted to int</returns>
         public static int ToNDSs32(byte[] buffer, int offset)
         {
-            return (int)(buffer[offset]
-                        | (buffer[offset + 1] << 8)
-                        | (buffer[offset + 2] << 16)
-                        | (buffer[offset + 3] << 24));
+            return buffer[offset]
+                   | (buffer[offset + 1] << 8)
+                   | (buffer[offset + 2] << 16)
+                   | (buffer[offset + 3] << 24);
         }
 
         /// <summary>
@@ -49,7 +49,7 @@ namespace DSDecmp
         /// </summary>
         public static byte[] FromNDSu32(uint value)
         {
-            return new byte[] {
+            return new[] {
                 (byte)(value & 0xFF),
                 (byte)((value >> 8) & 0xFF),
                 (byte)((value >> 16) & 0xFF),
@@ -66,9 +66,9 @@ namespace DSDecmp
         /// <returns>The indicated 3 bytes converted to an integer.</returns>
         public static int ToNDSu24(byte[] buffer, int offset)
         {
-            return (int)(buffer[offset]
-                        | (buffer[offset + 1] << 8)
-                        | (buffer[offset + 2] << 16));
+            return buffer[offset]
+                   | (buffer[offset + 1] << 8)
+                   | (buffer[offset + 2] << 16);
         }
         #endregion
 
@@ -127,7 +127,10 @@ namespace DSDecmp
                 {
                     formats.AddRange(LoadCompressionPlugin(file, false));
                 }
-                catch (Exception) { }
+                catch (Exception)
+                {
+                    // ignored
+                }
             }
 
             return formats;

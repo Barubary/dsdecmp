@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
+using DSDecmp.Exceptions;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -47,7 +47,7 @@ namespace DSDecmp.Formats.Nitro
             try
             {
                 int firstByte = stream.ReadByte();
-                if (firstByte != this.magicByte)
+                if (firstByte != magicByte)
                     return false;
                 // no need to read the size info as well if it's used anyway.
                 if (!SkipLargePlaintexts)
@@ -67,7 +67,7 @@ namespace DSDecmp.Formats.Nitro
                 try
                 {
                     stream.Position = startPosition;
-                    this.Decompress(stream, Math.Min(Math.Min(inLength, 0x80000), MaxPlaintextSize), new System.IO.MemoryStream());
+                    Decompress(stream, Math.Min(Math.Min(inLength, 0x80000), MaxPlaintextSize), new System.IO.MemoryStream());
                     // we expect a NotEnoughDataException, since we're giving the decompressor only part of the file.
                     return false;
                 }

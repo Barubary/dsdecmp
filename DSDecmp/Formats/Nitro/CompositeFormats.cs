@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace DSDecmp.Formats.Nitro
+﻿namespace DSDecmp.Formats.Nitro
 {
     /// <summary>
     /// A composite format with all formats supported natively by the GBA.

@@ -3,13 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using DSDecmp;
+using DSDecmp.Exceptions;
 using DSDecmp.Formats;
 using DSDecmp.Formats.Nitro;
+using DSDecmp.Utils;
 
 namespace DSDecmpEx
 {
-    public class NewestProgram
+    public static class Program
     {
 #if DEBUG
         public static string PluginFolder = "./Plugins/Debug";
@@ -175,60 +176,58 @@ namespace DSDecmpEx
 
                         #region try to decompress using the current format
 
-                        using (MemoryStream inStr = new MemoryStream(inputData),
-                                            outStr = new MemoryStream())
+                        using MemoryStream inStr = new MemoryStream(inputData),
+                            outStr = new MemoryStream();
+                        if (!format.Supports(inStr, inputData.Length))
+                            continue;
+                        try
                         {
-                            if (!format.Supports(inStr, inputData.Length))
+                            long decompSize = format.Decompress(inStr, inputData.Length, outStr);
+                            if (decompSize < 0)
                                 continue;
-                            try
+                            if (guessExtension)
                             {
-                                long decompSize = format.Decompress(inStr, inputData.Length, outStr);
-                                if (decompSize < 0)
-                                    continue;
-                                if (guessExtension)
-                                {
-                                    string outFileName = Path.GetFileNameWithoutExtension(outputFile);
-                                    outStr.Position = 0;
-                                    byte[] magic = new byte[4];
-                                    outStr.Read(magic, 0, 4);
-                                    outStr.Position = 0;
-                                    outFileName += "." + GuessExtension(magic, Path.GetExtension(outputFile).Substring(1));
-                                    outputFile = outputFile.Replace(Path.GetFileName(outputFile), outFileName);
-                                }
-                                using (FileStream output = File.Create(outputFile))
-                                {
-                                    outStr.WriteTo(output);
-                                }
-                                decompressed = true;
-                                Console.WriteLine(format.ShortFormatString + "-decompressed " + input + " to " + outputFile);
-                                break;
+                                string outFileName = Path.GetFileNameWithoutExtension(outputFile);
+                                outStr.Position = 0;
+                                byte[] magic = new byte[4];
+                                outStr.Read(magic, 0, 4);
+                                outStr.Position = 0;
+                                outFileName += "." + GuessExtension(magic, Path.GetExtension(outputFile).Substring(1));
+                                outputFile = outputFile.Replace(Path.GetFileName(outputFile), outFileName);
                             }
-                            catch (TooMuchInputException tmie)
+                            using (FileStream output = File.Create(outputFile))
                             {
-                                // a TMIE is fine. let the user know and continue saving the decompressed data.
-                                Console.WriteLine(tmie.Message);
-                                if (guessExtension)
-                                {
-                                    string outFileName = Path.GetFileNameWithoutExtension(outputFile);
-                                    outStr.Position = 0;
-                                    byte[] magic = new byte[4];
-                                    outStr.Read(magic, 0, 4);
-                                    outStr.Position = 0;
-                                    outFileName += "." + GuessExtension(magic, Path.GetExtension(outputFile).Substring(1));
-                                    outputFile = outputFile.Replace(Path.GetFileName(outputFile), outFileName);
-                                }
-                                using (FileStream output = File.Create(outputFile))
-                                {
-                                    outStr.WriteTo(output);
-                                }
-                                decompressed = true;
-                                Console.WriteLine(format.ShortFormatString + "-decompressed " + input + " to " + outputFile);
-                                break;
+                                outStr.WriteTo(output);
                             }
-                            catch (Exception)
+                            decompressed = true;
+                            Console.WriteLine(format.ShortFormatString + "-decompressed " + input + " to " + outputFile);
+                            break;
+                        }
+                        catch (TooMuchInputException tmie)
+                        {
+                            // a TMIE is fine. let the user know and continue saving the decompressed data.
+                            Console.WriteLine(tmie.Message);
+                            if (guessExtension)
                             {
-                                continue;
+                                string outFileName = Path.GetFileNameWithoutExtension(outputFile);
+                                outStr.Position = 0;
+                                byte[] magic = new byte[4];
+                                outStr.Read(magic, 0, 4);
+                                outStr.Position = 0;
+                                outFileName += "." + GuessExtension(magic, Path.GetExtension(outputFile).Substring(1));
+                                outputFile = outputFile.Replace(Path.GetFileName(outputFile), outFileName);
                             }
+                            using (FileStream output = File.Create(outputFile))
+                            {
+                                outStr.WriteTo(output);
+                            }
+                            decompressed = true;
+                            Console.WriteLine(format.ShortFormatString + "-decompressed " + input + " to " + outputFile);
+                            break;
+                        }
+                        catch (Exception)
+                        {
+                            continue;
                         }
 
                         #endregion
@@ -439,7 +438,7 @@ namespace DSDecmpEx
                         else// if (Directory.Exists(ioArgs[1]))
                         // both nonexisting file and existing directory is handled the same.
                         {
-                            inputFiles = new string[] { ioArgs[0] };
+                            inputFiles = new[] { ioArgs[0] };
                             outputDir = ioArgs[1];
                             break;
                         }
@@ -565,7 +564,7 @@ namespace DSDecmpEx
         {
             string pluginPath = Directory.GetParent(Assembly.GetExecutingAssembly().Location).FullName;
             pluginPath = Path.Combine(pluginPath, PluginFolder);
-            if (System.IO.Directory.Exists(pluginPath))
+            if (Directory.Exists(pluginPath))
             {
                 foreach (CompressionFormat fmt in IOUtils.LoadCompressionPlugins(pluginPath))
                     yield return fmt;

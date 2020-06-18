@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace DSDecmp
+namespace DSDecmp.Exceptions
 {
     /// <summary>
     /// An exception indication that the input has more data than required in order
@@ -26,7 +24,7 @@ namespace DSDecmp
             : base("The input contains more data than necessary. Only used 0x" 
             + readBytes.ToString("X") + " of 0x" + totLength.ToString("X") + " bytes")
         {
-            this.ReadBytes = readBytes;
+            ReadBytes = readBytes;
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.IO;
+using DSDecmp.Exceptions;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -121,7 +121,7 @@ namespace DSDecmp.Formats.Nitro
             long readBytes = 0;
 
             byte type = (byte)instream.ReadByte();
-            if (type != base.magicByte)
+            if (type != magicByte)
                 throw new InvalidDataException("The provided stream is not a valid LZ-0x11 "
                             + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
@@ -316,7 +316,7 @@ namespace DSDecmp.Formats.Nitro
                 throw new StreamTooShortException();
 
             // write the compression header first
-            outstream.WriteByte(this.magicByte);
+            outstream.WriteByte(magicByte);
             outstream.WriteByte((byte)(inLength & 0xFF));
             outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
             outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
@@ -433,7 +433,7 @@ namespace DSDecmp.Formats.Nitro
                 throw new StreamTooShortException();
 
             // write the compression header first
-            outstream.WriteByte(this.magicByte);
+            outstream.WriteByte(magicByte);
             outstream.WriteByte((byte)(inLength & 0xFF));
             outstream.WriteByte((byte)((inLength >> 8) & 0xFF));
             outstream.WriteByte((byte)((inLength >> 16) & 0xFF));
@@ -452,7 +452,7 @@ namespace DSDecmp.Formats.Nitro
 
                 // get the optimal choices for len and disp
                 int[] lengths, disps;
-                this.GetOptimalCompressionLengths(instart, indata.Length, out lengths, out disps);
+                GetOptimalCompressionLengths(instart, indata.Length, out lengths, out disps);
                 while (readBytes < inLength)
                 {
                     // we can only buffer 8 blocks at a time.

@@ -1,9 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.IO;
+﻿using System.IO;
 
-namespace DSDecmp
+namespace DSDecmp.Exceptions
 {
     /// <summary>
     /// An exception that is thrown by the decompression functions when there
@@ -16,11 +13,11 @@ namespace DSDecmp
         /// <summary>
         /// Gets the actual number of written bytes.
         /// </summary>
-        public long WrittenLength { get { return this.currentOutSize; } }
+        public long WrittenLength { get { return currentOutSize; } }
         /// <summary>
         /// Gets the number of bytes that was supposed to be written.
         /// </summary>
-        public long DesiredLength { get { return this.totalOutSize; } }
+        public long DesiredLength { get { return totalOutSize; } }
 
         /// <summary>
         /// Creates a new NotEnoughDataException.

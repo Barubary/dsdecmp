@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.IO;
+using DSDecmp.Exceptions;
+using DSDecmp.Utils;
 
 namespace DSDecmp.Formats.Nitro
 {
@@ -52,7 +52,7 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// Checks if the given stream is (or could be) 'compressed' using the NULL compression format.
         /// </summary>
-        public override bool Supports(System.IO.Stream stream, long inLength)
+        public override bool Supports(Stream stream, long inLength)
         {
             long startPosition = stream.Position;
             try
@@ -82,12 +82,12 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// 'Decompresses' the given input stream using the NULL format.
         /// </summary>
-        public override long Decompress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             long readBytes = 0;
 
             byte type = (byte)instream.ReadByte();
-            if (type != base.magicByte)
+            if (type != magicByte)
                 throw new InvalidDataException("The provided stream is not a valid Null "
                             + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
@@ -114,7 +114,7 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// 'Compresses' the given input stream using the NULL format.
         /// </summary>
-        public override int Compress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public override int Compress(Stream instream, long inLength, Stream outstream)
         {
             if (inLength > 0xFFFFFFFF)
                 throw new InputTooLargeException();

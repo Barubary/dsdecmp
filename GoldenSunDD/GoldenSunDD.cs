@@ -1,10 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 using System.IO;
-using DSDecmp;
+using DSDecmp.Exceptions;
+using DSDecmp.Formats;
+using DSDecmp.Utils;
 
-namespace GameFormats
+namespace GoldenSunDD
 {
     public class GoldenSunDD : CompressionFormat
     {
@@ -29,7 +29,7 @@ namespace GameFormats
             get { return false; }
         }
 
-        public override bool Supports(System.IO.Stream stream, long inLength)
+        public override bool Supports(Stream stream, long inLength)
         {
             long streamStart = stream.Position;
             try
@@ -39,8 +39,8 @@ namespace GameFormats
                 // order to check if it is supported.
                 try
                 {
-                    using (MemoryStream tempStream = new MemoryStream())
-                        this.Decompress(stream, inLength, tempStream);
+                    using MemoryStream tempStream = new MemoryStream();
+                    Decompress(stream, inLength, tempStream);
                     return true;
                 }
                 catch (TooMuchInputException)
@@ -61,7 +61,7 @@ namespace GameFormats
         }
 
         #region Decompression method
-        public override long Decompress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region format specification
             // no NDSTEK-like specification for this one; I seem to not be able to get those right.
@@ -243,7 +243,7 @@ namespace GameFormats
         }
         #endregion
 
-        public override int Compress(System.IO.Stream instream, long inLength, System.IO.Stream outstream)
+        public override int Compress(Stream instream, long inLength, Stream outstream)
         {
             throw new NotImplementedException();
         }

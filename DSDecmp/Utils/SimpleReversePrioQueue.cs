@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
-namespace DSDecmp
+namespace DSDecmp.Utils
 {
     /// <summary>
     /// Very simplistic implementation of a priority queue that returns items with lowest priority first.
@@ -20,15 +19,15 @@ namespace DSDecmp
         /// <summary>
         /// Gets the number of items in this queue.
         /// </summary>
-        public int Count { get { return this.itemCount; } }
+        public int Count { get { return itemCount; } }
 
         /// <summary>
         /// Creates a new, empty reverse priority queue.
         /// </summary>
         public SimpleReversedPrioQueue()
         {
-            this.items = new SortedDictionary<TPrio, LinkedList<TValue>>();
-            this.itemCount = 0;
+            items = new SortedDictionary<TPrio, LinkedList<TValue>>();
+            itemCount = 0;
         }
 
         /// <summary>
@@ -38,10 +37,10 @@ namespace DSDecmp
         /// <param name="value">The value to enqueue.</param>
         public void Enqueue(TPrio priority, TValue value)
         {
-            if (!this.items.ContainsKey(priority))
-                this.items.Add(priority, new LinkedList<TValue>());
-            this.items[priority].AddLast(value);
-            this.itemCount++;
+            if (!items.ContainsKey(priority))
+                items.Add(priority, new LinkedList<TValue>());
+            items[priority].AddLast(value);
+            itemCount++;
         }
 
         /// <summary>
@@ -52,9 +51,9 @@ namespace DSDecmp
         /// <exception cref="IndexOutOfRangeException">If there are no items left in this queue.</exception>
         public TValue Peek(out TPrio priority)
         {
-            if (this.itemCount == 0)
+            if (itemCount == 0)
                 throw new IndexOutOfRangeException();
-            foreach (KeyValuePair<TPrio, LinkedList<TValue>> kvp in this.items)
+            foreach (KeyValuePair<TPrio, LinkedList<TValue>> kvp in items)
             {
                 priority = kvp.Key;
                 return kvp.Value.First.Value;
@@ -70,11 +69,11 @@ namespace DSDecmp
         /// <exception cref="IndexOutOfRangeException">If this queue does not contain any items.</exception>
         public TValue Dequeue(out TPrio priority)
         {
-            if (this.itemCount == 0)
+            if (itemCount == 0)
                 throw new IndexOutOfRangeException();
             LinkedList<TValue> lowestLL = null;
             priority = default(TPrio);
-            foreach (KeyValuePair<TPrio, LinkedList<TValue>> kvp in this.items)
+            foreach (KeyValuePair<TPrio, LinkedList<TValue>> kvp in items)
             {
                 lowestLL = kvp.Value;
                 priority = kvp.Key;
@@ -86,9 +85,9 @@ namespace DSDecmp
             // remove unused linked lists. priorities will only grow.
             if (lowestLL.Count == 0)
             {
-                this.items.Remove(priority);
+                items.Remove(priority);
             }
-            this.itemCount--;
+            itemCount--;
             return returnValue;
         }
     }

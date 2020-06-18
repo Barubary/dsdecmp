@@ -46,6 +46,7 @@ namespace DSDecmp.Formats
         }
 
         private static bool lookAhead = false;
+
         /// <summary>
         /// Sets the flag that determines if 'look-ahead'/DP should be used when compressing
         /// with the LZ-Ovl format. The default is false, which is what is used in the original
@@ -68,10 +69,12 @@ namespace DSDecmp.Formats
                     LookAhead = true;
                     return 1;
                 }
+
             return 0;
         }
 
         #region Method: Supports(string file)
+
         /// <summary>
         /// Checks if this format supports decompressing the given file.
         /// </summary>
@@ -84,9 +87,11 @@ namespace DSDecmp.Formats
                 fLength -= 0xC;
             return Supports(fstr, fLength);
         }
+
         #endregion
 
         #region Method: Supports(Stream, long)
+
         /// <summary>
         /// Checks if this format supports decompressing the given input.
         /// </summary>
@@ -130,16 +135,19 @@ namespace DSDecmp.Formats
                     return false;
             return true;
         }
+
         #endregion
 
         #region Method: Decompress(string, string)
+
         /// <summary>
         /// Decompresses the given input file to the given output file using the LZ-Overlay compression format.
         /// </summary>
         public override void Decompress(string infile, string outfile)
         {
             // make sure the output directory exists
-            string outDirectory = Path.GetDirectoryName(outfile) ?? throw new ArgumentException($"Parameter should not be path root", nameof(outfile));
+            string outDirectory = Path.GetDirectoryName(outfile) ??
+                                  throw new ArgumentException($"Parameter should not be path root", nameof(outfile));
             if (!Directory.Exists(outDirectory))
                 Directory.CreateDirectory(outDirectory);
             // open the two given files, and delegate to the format-specific code.
@@ -151,15 +159,18 @@ namespace DSDecmp.Formats
                 fLength -= 0xC;
             Decompress(inStream, fLength, outStream);
         }
+
         #endregion
 
         #region Decompression method
+
         /// <summary>
         /// Decompresses the given input using the LZ-Overlay compression scheme.
         /// </summary>
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region Format description
+
             // Overlay LZ compression is basically just LZ-0x10 compression.
             // however the order if reading is reversed: the compression starts at the end of the file.
             // Assuming we start reading at the end towards the beginning, the format is:
@@ -181,6 +192,7 @@ namespace DSDecmp.Formats
              * which may be ignored. (and are ignored here) These 12 bytes also should not
              * be included in the computation of the output size.
              */
+
             #endregion
 
             #region First read the last 4 bytes of the stream (the 'extraSize')
@@ -200,6 +212,7 @@ namespace DSDecmp.Formats
                 // this is the only location where we have to check for an EOS to occur.
                 throw new StreamTooShortException();
             }
+
             uint extraSize = IOUtils.ToNDSu32(buffer, 0);
 
             #endregion
@@ -266,34 +279,43 @@ namespace DSDecmp.Formats
                 while (currentOutSize < decompressedLength)
                 {
                     // (throws when requested new flags byte is not available)
+
                     #region Update the mask. If all flag bits have been read, get a new set.
+
                     // the current mask is the mask used in the previous run. So if it masks the
                     // last flag bit, get a new flags byte.
                     if (mask == 1)
                     {
                         if (readBytes >= compressedSize)
                             throw new NotEnoughDataException(currentOutSize, decompressedLength);
-                        flags = buffer[buffer.Length - 1 - readBytes]; readBytes++;
+                        flags = buffer[buffer.Length - 1 - readBytes];
+                        readBytes++;
                         mask = 0x80;
                     }
                     else
                     {
                         mask >>= 1;
                     }
+
                     #endregion
 
                     // bit = 1 <=> compressed.
                     if ((flags & mask) > 0)
                     {
                         // (throws when < 2 bytes are available)
+
                         #region Get length and displacement('disp') values from next 2 bytes
+
                         // there are < 2 bytes available when the end is at most 1 byte away
                         if (readBytes + 1 >= inLength)
                         {
                             throw new NotEnoughDataException(currentOutSize, decompressedLength);
                         }
-                        int byte1 = buffer[compressedSize - 1 - readBytes]; readBytes++;
-                        int byte2 = buffer[compressedSize - 1 - readBytes]; readBytes++;
+
+                        int byte1 = buffer[compressedSize - 1 - readBytes];
+                        readBytes++;
+                        int byte2 = buffer[compressedSize - 1 - readBytes];
+                        readBytes++;
 
                         // the number of bytes to copy
                         int length = byte1 >> 4;
@@ -307,13 +329,16 @@ namespace DSDecmp.Formats
                         {
                             if (currentOutSize < 2)
                                 throw new InvalidDataException("Cannot go back more than already written; "
-                                    + "attempt to go back 0x" + disp.ToString("X") + " when only 0x"
-                                    + currentOutSize.ToString("X") + " bytes have been written.");
+                                                               + "attempt to go back 0x" + disp.ToString("X") +
+                                                               " when only 0x"
+                                                               + currentOutSize.ToString("X") +
+                                                               " bytes have been written.");
                             // HACK. this seems to produce valid files, but isn't the most elegant solution.
                             // although this _could_ be the actual way to use a disp of 2 in this format,
                             // as otherwise the minimum would be 3 (and 0 is undefined, and 1 is less useful).
                             disp = 2;
                         }
+
                         #endregion
 
                         int bufIdx = currentOutSize - disp;
@@ -329,7 +354,8 @@ namespace DSDecmp.Formats
                     {
                         if (readBytes >= inLength)
                             throw new NotEnoughDataException(currentOutSize, decompressedLength);
-                        byte next = buffer[buffer.Length - 1 - readBytes]; readBytes++;
+                        byte next = buffer[buffer.Length - 1 - readBytes];
+                        readBytes++;
 
                         outbuffer[outbuffer.Length - 1 - currentOutSize] = next;
                         currentOutSize++;
@@ -346,9 +372,11 @@ namespace DSDecmp.Formats
                 return decompressedLength + (inLength - headerSize - compressedSize);
             }
         }
+
         #endregion
 
         #region Compression method; delegates to CompressNormal
+
         /// <summary>
         /// Compresses the input using the LZ-Overlay compression scheme.
         /// </summary>
@@ -407,13 +435,18 @@ namespace DSDecmp.Formats
             {
                 Array.Reverse(indata);
                 outstream.Write(indata, 0, (int)inLength);
-                outstream.WriteByte(0); outstream.WriteByte(0); outstream.WriteByte(0); outstream.WriteByte(0);
+                outstream.WriteByte(0);
+                outstream.WriteByte(0);
+                outstream.WriteByte(0);
+                outstream.WriteByte(0);
                 return (int)inLength + 4;
             }
         }
+
         #endregion
 
         #region 'Normal' compression method. Delegates to CompressWithLA when LookAhead is set
+
         /// <summary>
         /// Compresses the given input stream with the LZ-Ovl compression, but compresses _forward_
         /// instad of backwards.
@@ -454,6 +487,7 @@ namespace DSDecmp.Formats
                 while (readBytes < inLength)
                 {
                     #region If 8 blocks are bufferd, write them and reset the buffer
+
                     // we can only buffer 8 blocks at a time.
                     if (bufferedBlocks == 8)
                     {
@@ -464,6 +498,7 @@ namespace DSDecmp.Formats
                         bufferlength = 1;
                         bufferedBlocks = 0;
                     }
+
                     #endregion
 
                     // determine if we're dealing with a compressed or raw block.
@@ -471,8 +506,9 @@ namespace DSDecmp.Formats
                     // somewhere in the set of already compressed bytes.
                     int disp;
                     int oldLength = Math.Min(readBytes, 0x1001);
-                    int length = LZUtil.GetOccurrenceLength(instart + readBytes, (int)Math.Min(inLength - readBytes, 0x12),
-                                                          instart + readBytes - oldLength, oldLength, out disp);
+                    int length = LZUtil.GetOccurrenceLength(instart + readBytes,
+                        (int)Math.Min(inLength - readBytes, 0x12),
+                        instart + readBytes - oldLength, oldLength, out disp);
 
                     // disp = 1 cannot be stored.
                     if (disp == 1)
@@ -509,6 +545,7 @@ namespace DSDecmp.Formats
                         outbuffer[bufferlength] = (byte)((disp - 3) & 0xFF);
                         bufferlength++;
                     }
+
                     bufferedBlocks++;
                 }
 
@@ -528,9 +565,11 @@ namespace DSDecmp.Formats
 
             return compressedLength;
         }
+
         #endregion
 
         #region Dynamic Programming compression method
+
         /// <summary>
         /// Variation of the original compression method, making use of Dynamic Programming to 'look ahead'
         /// and determine the optimal 'length' values for the compressed blocks. Is not 100% optimal,
@@ -609,9 +648,11 @@ namespace DSDecmp.Formats
 
             return compressedLength;
         }
+
         #endregion
 
         #region DP compression helper method; GetOptimalCompressionLengths
+
         /// <summary>
         /// Gets the optimal compression lengths for each start of a compressed block using Dynamic Programming.
         /// This takes O(n^2) time.
@@ -642,7 +683,7 @@ namespace DSDecmp.Formats
                 // get the appropriate disp while at it. Takes at most O(n) time if oldLength is considered O(n)
                 // be sure to bound the input length with 0x12, as that's the maximum length for LZ-Ovl compressed blocks.
                 int maxLen = LZUtil.GetOccurrenceLength(indata + i, Math.Min(inLength - i, 0x12),
-                                                 indata + i - oldLength, oldLength, out disps[i]);
+                    indata + i - oldLength, oldLength, out disps[i]);
                 if (disps[i] > i)
                     throw new Exception("disp is too large");
                 // disp < 3 cannot be stored explicitly.
@@ -666,9 +707,11 @@ namespace DSDecmp.Formats
             // we could optimize this further to also optimize it with regard to the flag-bytes, but that would require 8 times
             // more space and time (one for each position in the block) for only a potentially tiny increase in compression ratio.
         }
+
         #endregion
 
         #region DP compression helper method: GetOptimalCompressionPartLength
+
         /// <summary>
         /// Gets the 'optimal' length of the compressed part of the file.
         /// Or rather: the length in such a way that compressing any more will not
@@ -682,7 +725,7 @@ namespace DSDecmp.Formats
             int block8Idx = 0;
             int insideBlockIdx = 0;
             int totalCompLength = 0;
-            for (int i = 0; i < blocklengths.Length; )
+            for (int i = 0; i < blocklengths.Length;)
             {
                 if (insideBlockIdx == 8)
                 {
@@ -690,6 +733,7 @@ namespace DSDecmp.Formats
                     insideBlockIdx = 0;
                     totalCompLength++;
                 }
+
                 insideBlockIdx++;
 
                 if (blocklengths[i] >= 3)
@@ -702,7 +746,7 @@ namespace DSDecmp.Formats
             int[] actualRestCompLengths = new int[blocklengths.Length];
             block8Idx = 0;
             insideBlockIdx = 0;
-            for (int i = 0; i < blocklengths.Length; )
+            for (int i = 0; i < blocklengths.Length;)
             {
                 if (insideBlockIdx == 8)
                 {
@@ -710,6 +754,7 @@ namespace DSDecmp.Formats
                     insideBlockIdx = 0;
                     totalCompLength--;
                 }
+
                 if (blocklengths[i] >= 3)
                     totalCompLength -= 2;
                 else
@@ -721,8 +766,10 @@ namespace DSDecmp.Formats
                 if (totalCompLength > (blocklengths.Length - i))
                     return i;
             }
+
             return blocklengths.Length;
         }
+
         #endregion
     }
 }

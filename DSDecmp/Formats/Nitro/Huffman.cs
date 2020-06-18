@@ -13,6 +13,7 @@ namespace DSDecmp.Formats.Nitro
     public abstract class Huffman : NitroCFormat
     {
         #region Enum: BlockSize
+
         /// <summary>
         /// The possible data sizes used in Huffman compression formats on the GBA/NDS.
         /// </summary>
@@ -22,11 +23,13 @@ namespace DSDecmp.Formats.Nitro
             /// Each data block is four bits long.
             /// </summary>
             FOURBIT = 0x24,
+
             /// <summary>
             /// Each data block is eight bits long.
             /// </summary>
             EIGHTBIT = 0x28
         }
+
         #endregion
 
         /// <summary>
@@ -44,6 +47,7 @@ namespace DSDecmp.Formats.Nitro
 
 
         #region Internal Constructor(BlockSize)
+
         /// <summary>
         /// Creates a new generic instance of the Huffman compression format.
         /// </summary>
@@ -53,10 +57,12 @@ namespace DSDecmp.Formats.Nitro
         {
             CompressBlockSize = blockSize;
         }
+
         #endregion
 
 
         #region Decompression method
+
         /// <summary>
         /// Decompresses the given stream, writing the decompressed data to the given output stream.
         /// Assumes <code>Supports(instream)</code> returns <code>true</code>.
@@ -75,6 +81,7 @@ namespace DSDecmp.Formats.Nitro
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region GBATEK format specification
+
             /*
                 Data Header (32bit)
                     Bit0-3   Data size in bit units (normally 4 or 8)
@@ -94,6 +101,7 @@ namespace DSDecmp.Formats.Nitro
                 Compressed Bitstream (stored in units of 32bits)
                     Bit0-31  Node Bits (Bit31=First Bit)  (0=Node0, 1=Node1)
             */
+
             #endregion
 
             long readBytes = 0;
@@ -101,7 +109,8 @@ namespace DSDecmp.Formats.Nitro
             byte type = (byte)instream.ReadByte();
             if (type != (byte)CompressBlockSize)
                 throw new InvalidDataException("The provided stream is not a valid Huffman "
-                            + "compressed stream (invalid type 0x" + type.ToString("X") + "); unknown block size.");
+                                               + "compressed stream (invalid type 0x" + type.ToString("X") +
+                                               "); unknown block size.");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);
@@ -118,7 +127,8 @@ namespace DSDecmp.Formats.Nitro
 
             if (readBytes >= inLength)
                 throw new NotEnoughDataException(0, decompressedSize);
-            int treeSize = instream.ReadByte(); readBytes++;
+            int treeSize = instream.ReadByte();
+            readBytes++;
             if (treeSize < 0)
                 throw new InvalidDataException("The stream is too short to contain a Huffman tree.");
 
@@ -157,6 +167,7 @@ namespace DSDecmp.Formats.Nitro
             while (currentSize < decompressedSize)
             {
                 #region find the next reference to a data node
+
                 while (!currentNode.IsData)
                 {
                     // if there are no bits left to read in the data, get a new byte from the input
@@ -171,45 +182,50 @@ namespace DSDecmp.Formats.Nitro
                         data = IOUtils.ToNDSu32(buffer, 0);
                         bitsLeft = 32;
                     }
+
                     // get the next bit
                     bitsLeft--;
                     bool nextIsOne = (data & (1 << bitsLeft)) != 0;
                     // go to the next node, the direction of the child depending on the value of the current/next bit
                     currentNode = nextIsOne ? currentNode.Child1 : currentNode.Child0;
                 }
+
                 #endregion
 
                 #region write the data in the current node (when possible)
+
                 switch (CompressBlockSize)
                 {
                     case BlockSize.EIGHTBIT:
-                        {
-                            // just copy the data if the block size is a full byte
-                            outstream.WriteByte(currentNode.Data);
-                            currentSize++;
-                            break;
-                        }
+                    {
+                        // just copy the data if the block size is a full byte
+                        outstream.WriteByte(currentNode.Data);
+                        currentSize++;
+                        break;
+                    }
                     case BlockSize.FOURBIT:
+                    {
+                        // cache the first half of the data if the block size is a half byte
+                        if (cachedByte < 0)
                         {
-                            // cache the first half of the data if the block size is a half byte
-                            if (cachedByte < 0)
-                            {
-                                cachedByte = currentNode.Data << 4;
-                            }
-                            else
-                            {
-                                // if we already cached a half-byte, combine the two halves and write the full byte.
-                                cachedByte |= currentNode.Data;
-                                outstream.WriteByte((byte)cachedByte);
-                                currentSize++;
-                                // be sure to forget the two written half-bytes
-                                cachedByte = -1;
-                            }
-                            break;
+                            cachedByte = currentNode.Data << 4;
                         }
+                        else
+                        {
+                            // if we already cached a half-byte, combine the two halves and write the full byte.
+                            cachedByte |= currentNode.Data;
+                            outstream.WriteByte((byte)cachedByte);
+                            currentSize++;
+                            // be sure to forget the two written half-bytes
+                            cachedByte = -1;
+                        }
+
+                        break;
+                    }
                     default:
                         throw new Exception("Unknown block size " + CompressBlockSize.ToString());
                 }
+
                 #endregion
 
                 outstream.Flush();
@@ -231,14 +247,17 @@ namespace DSDecmp.Formats.Nitro
 
             return decompressedSize;
         }
+
         #endregion
 
         #region Utility method: GetLowest(leafQueue, nodeQueue, out prio)
+
         /// <summary>
         /// Gets the tree node with the lowest priority (frequency) from the leaf and node queues.
         /// If the priority is the same for both head items in the queues, the node from the leaf queue is picked.
         /// </summary>
-        protected HuffTreeNode GetLowest(SimpleReversedPrioQueue<int, HuffTreeNode> leafQueue, SimpleReversedPrioQueue<int, HuffTreeNode> nodeQueue, out int prio)
+        protected HuffTreeNode GetLowest(SimpleReversedPrioQueue<int, HuffTreeNode> leafQueue,
+            SimpleReversedPrioQueue<int, HuffTreeNode> nodeQueue, out int prio)
         {
             if (leafQueue.Count == 0)
                 return nodeQueue.Dequeue(out prio);
@@ -256,23 +275,28 @@ namespace DSDecmp.Formats.Nitro
                     return nodeQueue.Dequeue(out prio);
             }
         }
+
         #endregion
 
         #region Utility class: HuffTreeNode
+
         /// <summary>
         /// A single node in a Huffman tree.
         /// </summary>
         public class HuffTreeNode
         {
             #region Fields & Properties: Data & IsData
+
             /// <summary>
             /// The data contained in this node. May not mean anything when <code>isData == false</code>
             /// </summary>
             private byte data;
+
             /// <summary>
             /// A flag indicating if this node has been filled.
             /// </summary>
             private bool isFilled;
+
             /// <summary>
             /// The data contained in this node. May not mean anything when <code>isData == false</code>.
             /// Throws a NullReferenceException when this node has not been defined (ie: reference was outside the
@@ -282,53 +306,82 @@ namespace DSDecmp.Formats.Nitro
             {
                 get
                 {
-                    if (!isFilled) throw new NullReferenceException("Reference to an undefined node in the huffman tree.");
+                    if (!isFilled)
+                        throw new NullReferenceException("Reference to an undefined node in the huffman tree.");
                     return data;
                 }
             }
+
             /// <summary>
             /// A flag indicating if this node contains data. If not, this is not a leaf node.
             /// </summary>
             private bool isData;
+
             /// <summary>
             /// Returns true if this node represents data.
             /// </summary>
-            public bool IsData { get { return isData; } }
+            public bool IsData
+            {
+                get { return isData; }
+            }
+
             #endregion
 
             #region Field & Properties: Children & Parent
+
             /// <summary>
             /// The child of this node at side 0
             /// </summary>
             private HuffTreeNode child0;
+
             /// <summary>
             /// The child of this node at side 0
             /// </summary>
-            public HuffTreeNode Child0 { get { return child0; } }
+            public HuffTreeNode Child0
+            {
+                get { return child0; }
+            }
+
             /// <summary>
             /// The child of this node at side 1
             /// </summary>
             private HuffTreeNode child1;
+
             /// <summary>
             /// The child of this node at side 1
             /// </summary>
-            public HuffTreeNode Child1 { get { return child1; } }
+            public HuffTreeNode Child1
+            {
+                get { return child1; }
+            }
+
             /// <summary>
             /// The parent node of this node.
             /// </summary>
             public HuffTreeNode Parent { get; private set; }
+
             /// <summary>
             /// Determines if this is the Child0 of the parent node. Assumes there is a parent.
             /// </summary>
-            public bool IsChild0 { get { return Parent.child0 == this; } }
+            public bool IsChild0
+            {
+                get { return Parent.child0 == this; }
+            }
+
             /// <summary>
             /// Determines if this is the Child1 of the parent node. Assumes there is a parent.
             /// </summary>
-            public bool IsChild1 { get { return Parent.child1 == this; } }
+            public bool IsChild1
+            {
+                get { return Parent.child1 == this; }
+            }
+
             #endregion
 
             #region Field & Property: Depth
+
             private int depth;
+
             /// <summary>
             /// Get or set the depth of this node. Will not be set automatically, but
             /// will be set recursively (the depth of all child nodes will be updated when this is set).
@@ -347,9 +400,11 @@ namespace DSDecmp.Formats.Nitro
                     }
                 }
             }
+
             #endregion
 
             #region Property: Size
+
             /// <summary>
             /// Calculates the size of the sub-tree with this node as root.
             /// </summary>
@@ -362,6 +417,7 @@ namespace DSDecmp.Formats.Nitro
                     return 1 + child0.Size + child1.Size;
                 }
             }
+
             #endregion
 
             /// <summary>
@@ -371,6 +427,7 @@ namespace DSDecmp.Formats.Nitro
             internal int index = -1;
 
             #region Constructor(data, isData, child0, child1)
+
             /// <summary>
             /// Manually creates a new node for a huffman tree.
             /// </summary>
@@ -391,9 +448,11 @@ namespace DSDecmp.Formats.Nitro
                     this.child1.Parent = this;
                 }
             }
+
             #endregion
 
             #region Constructor(Stream, isData, relOffset, maxStreamPos)
+
             /// <summary>
             /// Creates a new node in the Huffman tree.
             /// </summary>
@@ -424,6 +483,7 @@ namespace DSDecmp.Formats.Nitro
                     isFilled = false;
                     return;
                 }
+
                 isFilled = true;
                 int readData = stream.ReadByte();
                 if (readData < 0)
@@ -455,6 +515,7 @@ namespace DSDecmp.Formats.Nitro
                     stream.Position = currStreamPos;
                 }
             }
+
             #endregion
 
             /// <summary>
@@ -471,8 +532,8 @@ namespace DSDecmp.Formats.Nitro
                     return $"[{child0},{child1}]";
                 }
             }
-
         }
+
         #endregion
     }
 
@@ -509,9 +570,12 @@ namespace DSDecmp.Formats.Nitro
         /// Creates a new instance of the 4-bit Huffman compression format.
         /// </summary>
         public Huffman4()
-            : base(BlockSize.FOURBIT) { }
+            : base(BlockSize.FOURBIT)
+        {
+        }
 
         #region 4-bit block size Compression method
+
         /// <summary>
         /// Applies Huffman compression with a datablock size of 4 bits.
         /// </summary>
@@ -566,6 +630,7 @@ namespace DSDecmp.Formats.Nitro
                 nodeQueue.Enqueue(onePrio + twoPrio, newNode);
                 nodeCount++;
             }
+
             int rootPrio;
             HuffTreeNode root = nodeQueue.Dequeue(out rootPrio);
             // set the depth of all nodes in the tree, such that we know for each leaf how long
@@ -619,6 +684,7 @@ namespace DSDecmp.Formats.Nitro
                     printQueue.AddLast(node.Child0);
                     printQueue.AddLast(node.Child1);
                 }
+
                 compressedLength++;
             }
 
@@ -645,6 +711,7 @@ namespace DSDecmp.Formats.Nitro
                         path[depth - d - 1] = node.IsChild1;
                         node = node.Parent;
                     }
+
                     for (int d = 0; d < depth; d++)
                     {
                         if (bitsLeftToWrite == 0)
@@ -654,12 +721,12 @@ namespace DSDecmp.Formats.Nitro
                             datablock = 0;
                             bitsLeftToWrite = 32;
                         }
+
                         bitsLeftToWrite--;
                         if (path[d])
                             datablock |= (uint)(1 << bitsLeftToWrite);
                         // no need to OR the buffer with 0 if it is child0
                     }
-
                 }
             }
 
@@ -674,6 +741,7 @@ namespace DSDecmp.Formats.Nitro
 
             return compressedLength;
         }
+
         #endregion
     }
 
@@ -710,9 +778,12 @@ namespace DSDecmp.Formats.Nitro
         /// Creates a new instance of the 4-bit Huffman compression format.
         /// </summary>
         public Huffman8()
-            : base(BlockSize.EIGHTBIT) { }
+            : base(BlockSize.EIGHTBIT)
+        {
+        }
 
         #region 8-bit block size Compression method
+
         /// <summary>
         /// Applies Huffman compression with a datablock size of 8 bits.
         /// </summary>
@@ -765,6 +836,7 @@ namespace DSDecmp.Formats.Nitro
                 nodeQueue.Enqueue(onePrio + twoPrio, newNode);
                 nodeCount++;
             }
+
             int rootPrio;
             HuffTreeNode root = nodeQueue.Dequeue(out rootPrio);
             // set the depth of all nodes in the tree, such that we know for each leaf how long
@@ -797,6 +869,7 @@ namespace DSDecmp.Formats.Nitro
             LinkedList<HuffTreeNode> leafStemQueue = new LinkedList<HuffTreeNode>();
 
             #region fill the leaf queue; first->last will be reverse BF
+
             LinkedList<HuffTreeNode> nodeCodeStack = new LinkedList<HuffTreeNode>();
             nodeCodeStack.AddLast(root);
             while (nodeCodeStack.Count > 0)
@@ -814,8 +887,8 @@ namespace DSDecmp.Formats.Nitro
                     nodeCodeStack.AddLast(node.Child0);
                     nodeCodeStack.AddLast(node.Child1);
                 }
-
             }
+
             #endregion
 
             HuffTreeNode[] nodeArray = new HuffTreeNode[0x1FF]; // this array does not contain the leaves themselves!
@@ -840,7 +913,8 @@ namespace DSDecmp.Formats.Nitro
                 rootData |= 0x80;
             if (root.Child1.IsData)
                 rootData |= 0x40;
-            outstream.WriteByte(rootData); compressedLength++;
+            outstream.WriteByte(rootData);
+            compressedLength++;
 
             for (int i = 0; i < nodeArray.Length; i++)
             {
@@ -882,6 +956,7 @@ namespace DSDecmp.Formats.Nitro
                     compressedLength += 2;
                 }
             }
+
             #endregion
 
             #region write the data
@@ -902,6 +977,7 @@ namespace DSDecmp.Formats.Nitro
                     path[depth - d - 1] = node.IsChild1;
                     node = node.Parent;
                 }
+
                 for (int d = 0; d < depth; d++)
                 {
                     if (bitsLeftToWrite == 0)
@@ -911,6 +987,7 @@ namespace DSDecmp.Formats.Nitro
                         datablock = 0;
                         bitsLeftToWrite = 32;
                     }
+
                     bitsLeftToWrite--;
                     if (path[d])
                         datablock |= (uint)(1 << bitsLeftToWrite);
@@ -929,9 +1006,11 @@ namespace DSDecmp.Formats.Nitro
 
             return compressedLength;
         }
+
         #endregion
 
         #region Utility Method: Insert(node, HuffTreeNode[], maxOffset)
+
         /// <summary>
         /// Inserts the given node into the given array, in such a location that
         /// the offset to both of its children is at most the given maximum, and as large as possible.
@@ -998,9 +1077,11 @@ namespace DSDecmp.Formats.Nitro
                     Insert(node.Parent, array, maxOffset);
             }
         }
+
         #endregion
 
         #region Utility Method: ShiftRight(HuffTreeNode[], index, maxOffset)
+
         /// <summary>
         /// Shifts the node at the given index one to the right.
         /// If the distance between parent and child becomes too large due to this shift, the parent is shifted as well.
@@ -1021,6 +1102,7 @@ namespace DSDecmp.Formats.Nitro
             array[idx] = null;
             node.index++;
         }
+
         #endregion
     }
 
@@ -1033,7 +1115,9 @@ namespace DSDecmp.Formats.Nitro
         /// Creates a new instance of the general Huffman compression format.
         /// </summary>
         public HuffmanAny()
-            : base(new Huffman4(), new Huffman8()) { }
+            : base(new Huffman4(), new Huffman8())
+        {
+        }
 
         /// <summary>
         /// Gets a short string identifying this compression format.

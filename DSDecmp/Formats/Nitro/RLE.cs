@@ -47,9 +47,12 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// Creates a new instance of the RLE compression format.
         /// </summary>
-        public RLE() : base(0x30) { }
+        public RLE() : base(0x30)
+        {
+        }
 
         #region Method: Decompress
+
         /// <summary>
         /// Decompresses the input using the RLE compression scheme.
         /// </summary>
@@ -72,7 +75,7 @@ namespace DSDecmp.Formats.Nitro
             byte type = (byte)instream.ReadByte();
             if (type != magicByte)
                 throw new InvalidDataException("The provided stream is not a valid RLE "
-                            + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
+                                               + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);
@@ -93,7 +96,8 @@ namespace DSDecmp.Formats.Nitro
 
                 if (readBytes >= inLength)
                     throw new NotEnoughDataException(currentOutSize, decompressedSize);
-                int flag = instream.ReadByte(); readBytes++;
+                int flag = instream.ReadByte();
+                readBytes++;
                 if (flag < 0)
                     throw new StreamTooShortException();
 
@@ -113,13 +117,14 @@ namespace DSDecmp.Formats.Nitro
 
                     if (readBytes >= inLength)
                         throw new NotEnoughDataException(currentOutSize, decompressedSize);
-                    int data = instream.ReadByte(); readBytes++;
+                    int data = instream.ReadByte();
+                    readBytes++;
                     if (data < 0)
                         throw new StreamTooShortException();
 
                     if (currentOutSize + length > decompressedSize)
                         throw new InvalidDataException("The given stream is not a valid RLE stream; the "
-                            + "output length does not match the provided plaintext length.");
+                                                       + "output length does not match the provided plaintext length.");
                     byte bdata = (byte)data;
                     for (int i = 0; i < length; i++)
                     {
@@ -167,15 +172,16 @@ namespace DSDecmp.Formats.Nitro
 
             return decompressedSize;
         }
+
         #endregion Decompress
 
         #region Method: Compress
+
         /// <summary>
         /// Compresses the input using the RLE compression scheme.
         /// </summary>
         public override int Compress(Stream instream, long inLength, Stream outstream)
         {
-
             if (inLength > 0xFFFFFF)
                 throw new InputTooLargeException();
 
@@ -230,6 +236,7 @@ namespace DSDecmp.Formats.Nitro
                 }
 
                 #region insert uncompressed block
+
                 if (numUncompToCopy > 0)
                 {
                     byte flag = (byte)(numUncompToCopy - 1);
@@ -241,6 +248,7 @@ namespace DSDecmp.Formats.Nitro
                         dataBlock[i - numUncompToCopy] = dataBlock[i];
                     currentBlockLength -= numUncompToCopy;
                 }
+
                 #endregion
 
                 if (foundRepetition)
@@ -263,7 +271,9 @@ namespace DSDecmp.Formats.Nitro
                     }
 
                     // the next repCount bytes are the same.
+
                     #region insert compressed block
+
                     byte flag = (byte)(0x80 | (repCount - 3));
                     compressedData.Add(flag);
                     compressedData.Add(dataBlock[0]);
@@ -271,6 +281,7 @@ namespace DSDecmp.Formats.Nitro
                     if (repCount != currentBlockLength)
                         dataBlock[0] = dataBlock[currentBlockLength - 1];
                     currentBlockLength -= repCount;
+
                     #endregion
                 }
             }
@@ -298,6 +309,7 @@ namespace DSDecmp.Formats.Nitro
             // the total compressed stream length is the compressed data length + the 4-byte header
             return compLen + 4;
         }
+
         #endregion Compress
     }
 }

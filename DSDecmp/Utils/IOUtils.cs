@@ -11,8 +11,8 @@ namespace DSDecmp.Utils
     /// </summary>
     public static class IOUtils
     {
-
         #region byte[] <-> (u)int
+
         /// <summary>
         /// Returns a 4-byte unsigned integer as used on the NDS converted from four bytes
         /// at a specified position in a byte array.
@@ -23,9 +23,9 @@ namespace DSDecmp.Utils
         public static uint ToNDSu32(byte[] buffer, int offset)
         {
             return (uint)(buffer[offset]
-                        | (buffer[offset + 1] << 8)
-                        | (buffer[offset + 2] << 16)
-                        | (buffer[offset + 3] << 24));
+                          | (buffer[offset + 1] << 8)
+                          | (buffer[offset + 2] << 16)
+                          | (buffer[offset + 3] << 24));
         }
 
         /// <summary>
@@ -49,10 +49,9 @@ namespace DSDecmp.Utils
         /// </summary>
         public static byte[] FromNDSu32(uint value)
         {
-            return new[] {
-                (byte)(value & 0xFF),
-                (byte)((value >> 8) & 0xFF),
-                (byte)((value >> 16) & 0xFF),
+            return new[]
+            {
+                (byte)(value & 0xFF), (byte)((value >> 8) & 0xFF), (byte)((value >> 16) & 0xFF),
                 (byte)((value >> 24) & 0xFF)
             };
         }
@@ -70,9 +69,11 @@ namespace DSDecmp.Utils
                    | (buffer[offset + 1] << 8)
                    | (buffer[offset + 2] << 16);
         }
+
         #endregion
 
         #region Plugin loading
+
         /// <summary>
         /// (Attempts to) load compression formats from the given file.
         /// </summary>
@@ -104,7 +105,10 @@ namespace DSDecmp.Utils
                     catch (MissingMethodException)
                     {
                         if (printFailures)
-                            Console.WriteLine(dllType + " is a compression format, but does not have a parameterless constructor. Format cannot be loaded from " + fullPath + ".");
+                            Console.WriteLine(
+                                dllType +
+                                " is a compression format, but does not have a parameterless constructor. Format cannot be loaded from " +
+                                fullPath + ".");
                     }
                 }
             }
@@ -135,6 +139,7 @@ namespace DSDecmp.Utils
 
             return formats;
         }
+
         #endregion
 
         /// <summary>

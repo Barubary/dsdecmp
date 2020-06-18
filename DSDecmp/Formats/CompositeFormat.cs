@@ -27,6 +27,7 @@ namespace DSDecmp.Formats
         {
             this.formats = new List<CompressionFormat>(formats);
         }
+
         /// <summary>
         /// Creates a new composite format based on the given formats.
         /// </summary>
@@ -39,6 +40,7 @@ namespace DSDecmp.Formats
 
 
         #region Method: Supports
+
         /// <summary>
         /// Checks if any of the contained formats supports the given input.
         /// </summary>
@@ -49,11 +51,14 @@ namespace DSDecmp.Formats
                 if (fmt.Supports(stream, inLength))
                     return true;
             }
+
             return false;
         }
+
         #endregion
 
         #region Method: Decompress
+
         /// <summary>
         /// Attempts to decompress the given input by letting all contained formats
         /// try to decompress the input.
@@ -80,18 +85,24 @@ namespace DSDecmp.Formats
                         return decLength;
                     }
                 }
-                catch (Exception) { continue; }
+                catch (Exception)
+                {
+                    continue;
+                }
             }
 
             throw new InvalidDataException("Input cannot be decompressed using the " + ShortFormatString + " formats.");
         }
+
         #endregion
 
         #region Method: Compress & Field: LastUsedCompressFormatString
+
         /// <summary>
         /// Gets the ShortFormatString of the last CompressionFormat that was used to compress input.
         /// </summary>
         public string LastUsedCompressFormatString { get; private set; }
+
         /// <summary>
         /// Compresses the given input using the contained format that yields the best results in terms of
         /// size reduction.
@@ -129,6 +140,7 @@ namespace DSDecmp.Formats
                 {
                     continue;
                 }
+
                 if (currentOutSize < minCompSize)
                 {
                     bestOutput = currentOutput;
@@ -145,9 +157,11 @@ namespace DSDecmp.Formats
             LastUsedCompressFormatString = bestFormatString;
             return minCompSize;
         }
+
         #endregion
 
         #region Method: ParseCompressionOptions(args)
+
         /// <summary>
         /// Handles the compression options for each of the contained compression formats.
         /// </summary>
@@ -182,9 +196,10 @@ namespace DSDecmp.Formats
                     usedOption = true;
                 }
             }
+
             return totalOptionCount;
         }
-        #endregion
 
+        #endregion
     }
 }

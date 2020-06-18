@@ -13,6 +13,8 @@ namespace DSDecmp.Exceptions
         /// </summary>
         public InputTooLargeException()
             : base("The compression ratio is not high enough to fit the input "
-            + "in a single compressed file.") { }
+                   + "in a single compressed file.")
+        {
+        }
     }
 }

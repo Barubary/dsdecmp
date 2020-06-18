@@ -100,7 +100,7 @@ namespace DSDecmp.Utils
                 {
                     try
                     {
-                        newFormats.Add(Activator.CreateInstance(dllType) as CompressionFormat);
+                        newFormats.Add((CompressionFormat)Activator.CreateInstance(dllType));
                     }
                     catch (MissingMethodException)
                     {

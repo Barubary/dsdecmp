@@ -101,7 +101,7 @@ namespace DSDecmp.Formats
         /// <summary>
         /// Gets the ShortFormatString of the last CompressionFormat that was used to compress input.
         /// </summary>
-        public string LastUsedCompressFormatString { get; private set; }
+        public string? LastUsedCompressFormatString { get; private set; }
 
         /// <summary>
         /// Compresses the given input using the contained format that yields the best results in terms of
@@ -113,7 +113,7 @@ namespace DSDecmp.Formats
             byte[] inputData = new byte[instream.Length];
             instream.Read(inputData, 0, inputData.Length);
 
-            MemoryStream bestOutput = null;
+            MemoryStream? bestOutput = null;
             string bestFormatString = "";
             int minCompSize = int.MaxValue;
             foreach (CompressionFormat format in formats)

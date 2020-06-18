@@ -4,6 +4,22 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>8.0</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Authors>barubary,riina</Authors>
+    <Description>A compressor and decompressor for the compression formats commonly used in games made for Nintendo consoles/handhelds.</Description>
+    <Copyright>Portions Copyright ©2009-2011 barubary
+Portions Copyright ©2020 riina</Copyright>
+    <PackageProjectUrl>https://github.com/riina/dsdecmp</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/teamRokuro/Fp</RepositoryUrl>
+    <Company>riina</Company>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <PackOnBuild>true</PackOnBuild>
+    <Owners>riina</Owners>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+    <PackageVersion>1.0.0</PackageVersion>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
 </Project>

@@ -75,8 +75,8 @@ namespace DSDecmp.Utils
         {
             if (itemCount == 0)
                 throw new IndexOutOfRangeException();
-            LinkedList<TValue> lowestLL = null;
-            priority = default(TPrio);
+            LinkedList<TValue> lowestLL = null!; // Count > 0: always set once
+            priority = default!;
             foreach (KeyValuePair<TPrio, LinkedList<TValue>> kvp in items)
             {
                 lowestLL = kvp.Value;

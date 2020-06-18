@@ -183,7 +183,7 @@ namespace DSDecmp.Formats.Nitro
                     bitsLeft--;
                     bool nextIsOne = (data & (1 << bitsLeft)) != 0;
                     // go to the next node, the direction of the child depending on the value of the current/next bit
-                    currentNode = nextIsOne ? currentNode.Child1 : currentNode.Child0;
+                    currentNode = nextIsOne ? currentNode.Child1! : currentNode.Child0!;
                 }
 
                 #endregion
@@ -325,37 +325,37 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// The child of this node at side 0
             /// </summary>
-            private HuffTreeNode child0;
+            private HuffTreeNode? child0;
 
             /// <summary>
             /// The child of this node at side 0
             /// </summary>
-            public HuffTreeNode Child0 => child0;
+            public HuffTreeNode? Child0 => child0;
 
             /// <summary>
             /// The child of this node at side 1
             /// </summary>
-            private HuffTreeNode child1;
+            private HuffTreeNode? child1;
 
             /// <summary>
             /// The child of this node at side 1
             /// </summary>
-            public HuffTreeNode Child1 => child1;
+            public HuffTreeNode? Child1 => child1;
 
             /// <summary>
             /// The parent node of this node.
             /// </summary>
-            public HuffTreeNode Parent { get; private set; }
+            public HuffTreeNode? Parent { get; private set; }
 
             /// <summary>
             /// Determines if this is the Child0 of the parent node. Assumes there is a parent.
             /// </summary>
-            public bool IsChild0 => Parent.child0 == this;
+            public bool IsChild0 => Parent!.child0 == this;
 
             /// <summary>
             /// Determines if this is the Child1 of the parent node. Assumes there is a parent.
             /// </summary>
-            public bool IsChild1 => Parent.child1 == this;
+            public bool IsChild1 => Parent!.child1 == this;
 
             #endregion
 
@@ -376,8 +376,8 @@ namespace DSDecmp.Formats.Nitro
                     // recursively set the depth of the child nodes.
                     if (!isData)
                     {
-                        child0.Depth = depth + 1;
-                        child1.Depth = depth + 1;
+                        child0!.Depth = depth + 1;
+                        child1!.Depth = depth + 1;
                     }
                 }
             }
@@ -395,7 +395,7 @@ namespace DSDecmp.Formats.Nitro
                 {
                     if (IsData)
                         return 1;
-                    return 1 + child0.Size + child1.Size;
+                    return 1 + child0!.Size + child1!.Size;
                 }
             }
 
@@ -416,7 +416,7 @@ namespace DSDecmp.Formats.Nitro
             /// <param name="isData">If this node represents data.</param>
             /// <param name="child0">The child of this node on the 0 side.</param>
             /// <param name="child1">The child of this node on the 1 side.</param>
-            public HuffTreeNode(byte data, bool isData, HuffTreeNode child0, HuffTreeNode child1)
+            public HuffTreeNode(byte data, bool isData, HuffTreeNode? child0, HuffTreeNode? child1)
             {
                 this.data = data;
                 this.isData = isData;
@@ -425,8 +425,8 @@ namespace DSDecmp.Formats.Nitro
                 isFilled = true;
                 if (!isData)
                 {
-                    this.child0.Parent = this;
-                    this.child1.Parent = this;
+                    this.child0!.Parent = this;
+                    this.child1!.Parent = this;
                 }
             }
 
@@ -647,9 +647,9 @@ namespace DSDecmp.Formats.Nitro
                     if (data > 0x3F)
                         throw new InvalidDataException("BUG: offset overflow in 4-bit huffman.");
                     data = (byte)(data & 0x3F);
-                    if (node.Child0.IsData)
+                    if (node.Child0!.IsData)
                         data |= 0x80;
-                    if (node.Child1.IsData)
+                    if (node.Child1!.IsData)
                         data |= 0x40;
                     outstream.WriteByte(data);
 
@@ -680,8 +680,8 @@ namespace DSDecmp.Formats.Nitro
                     bool[] path = new bool[depth];
                     for (int d = 0; d < depth; d++)
                     {
-                        path[depth - d - 1] = node.IsChild1;
-                        node = node.Parent;
+                        path[depth - d - 1] = node!.IsChild1;
+                        node = node!.Parent!;
                     }
 
                     for (int d = 0; d < depth; d++)
@@ -789,10 +789,9 @@ namespace DSDecmp.Formats.Nitro
             while (leafQueue.Count + nodeQueue.Count > 1)
             {
                 // get the two nodes with the lowest priority.
-                HuffTreeNode one = null, two = null;
                 int onePrio, twoPrio;
-                one = GetLowest(leafQueue, nodeQueue, out onePrio);
-                two = GetLowest(leafQueue, nodeQueue, out twoPrio);
+                HuffTreeNode one = GetLowest(leafQueue, nodeQueue, out onePrio);
+                HuffTreeNode two = GetLowest(leafQueue, nodeQueue, out twoPrio);
 
                 // give those two a common parent, and put that node in the node queue
                 HuffTreeNode newNode = new HuffTreeNode(0, false, one, two);
@@ -841,14 +840,14 @@ namespace DSDecmp.Formats.Nitro
                 nodeCodeStack.RemoveFirst();
                 if (node.IsData)
                     continue;
-                if (node.Child0.IsData && node.Child1.IsData)
+                if (node.Child0!.IsData && node.Child1!.IsData)
                 {
                     leafStemQueue.AddFirst(node);
                 }
                 else
                 {
-                    nodeCodeStack.AddLast(node.Child0);
-                    nodeCodeStack.AddLast(node.Child1);
+                    nodeCodeStack.AddLast(node.Child0!);
+                    nodeCodeStack.AddLast(node.Child1!);
                 }
             }
 
@@ -872,9 +871,9 @@ namespace DSDecmp.Formats.Nitro
             // write the nodes in their given order. However when 'writing' a node, write the data of its children instead.
             // the root node is always the first node.
             byte rootData = 0;
-            if (root.Child0.IsData)
+            if (root.Child0!.IsData)
                 rootData |= 0x80;
-            if (root.Child1.IsData)
+            if (root.Child1!.IsData)
                 rootData |= 0x40;
             outstream.WriteByte(rootData);
             compressedLength++;
@@ -884,7 +883,7 @@ namespace DSDecmp.Formats.Nitro
                 if (nodeArray[i] != null)
                 {
                     // nodes in this array are never data!
-                    HuffTreeNode node0 = nodeArray[i].Child0;
+                    HuffTreeNode node0 = nodeArray[i].Child0!;
                     if (node0.IsData)
                         outstream.WriteByte(node0.Data);
                     else
@@ -893,14 +892,14 @@ namespace DSDecmp.Formats.Nitro
                         if (offset > 0x3F)
                             throw new Exception("Offset overflow!");
                         byte data = (byte)offset;
-                        if (node0.Child0.IsData)
+                        if (node0.Child0!.IsData)
                             data |= 0x80;
-                        if (node0.Child1.IsData)
+                        if (node0.Child1!.IsData)
                             data |= 0x40;
                         outstream.WriteByte(data);
                     }
 
-                    HuffTreeNode node1 = nodeArray[i].Child1;
+                    HuffTreeNode node1 = nodeArray[i].Child1!;
                     if (node1.IsData)
                         outstream.WriteByte(node1.Data);
                     else
@@ -909,9 +908,9 @@ namespace DSDecmp.Formats.Nitro
                         if (offset > 0x3F)
                             throw new Exception("Offset overflow!");
                         byte data = (byte)offset;
-                        if (node0.Child0.IsData)
+                        if (node0.Child0!.IsData)
                             data |= 0x80;
-                        if (node0.Child1.IsData)
+                        if (node0.Child1!.IsData)
                             data |= 0x40;
                         outstream.WriteByte(data);
                     }
@@ -938,7 +937,7 @@ namespace DSDecmp.Formats.Nitro
                 for (int d = 0; d < depth; d++)
                 {
                     path[depth - d - 1] = node.IsChild1;
-                    node = node.Parent;
+                    node = node.Parent!;
                 }
 
                 for (int d = 0; d < depth; d++)
@@ -985,7 +984,7 @@ namespace DSDecmp.Formats.Nitro
         private void Insert(HuffTreeNode node, HuffTreeNode[] array, int maxOffset)
         {
             // if the node has two data-children, insert it as far to the end as possible.
-            if (node.Child0.IsData && node.Child1.IsData)
+            if (node.Child0!.IsData && node.Child1!.IsData)
             {
                 for (int i = array.Length - 1; i >= 0; i--)
                 {
@@ -1001,7 +1000,7 @@ namespace DSDecmp.Formats.Nitro
             {
                 // if the node is not data, insert it as far left as possible.
                 // we know that both children are already present.
-                int offset = Math.Max(node.Child0.index - maxOffset, node.Child1.index - maxOffset);
+                int offset = Math.Max(node.Child0!.index - maxOffset, node.Child1!.index - maxOffset);
                 offset = Math.Max(0, offset);
                 if (offset >= node.Child0.index || offset >= node.Child1.index)
                 {
@@ -1035,8 +1034,8 @@ namespace DSDecmp.Formats.Nitro
             // if the insertion of this node means that the parent has both children inserted, insert the parent.
             if (node.Parent != null)
             {
-                if ((node.Parent.Child0.index >= 0 || node.Parent.Child0.IsData)
-                    && (node.Parent.Child1.index >= 0 || node.Parent.Child1.IsData))
+                if ((node.Parent.Child0!.index >= 0 || node.Parent.Child0.IsData)
+                    && (node.Parent.Child1!.index >= 0 || node.Parent.Child1.IsData))
                     Insert(node.Parent, array, maxOffset);
             }
         }
@@ -1052,12 +1051,12 @@ namespace DSDecmp.Formats.Nitro
         /// <param name="array">The array to shift the node in.</param>
         /// <param name="idx">The index of the node to shift.</param>
         /// <param name="maxOffset">The maximum distance between parent and children.</param>
-        private void ShiftRight(HuffTreeNode[] array, int idx, int maxOffset)
+        private void ShiftRight(HuffTreeNode?[] array, int idx, int maxOffset)
         {
-            HuffTreeNode node = array[idx];
+            HuffTreeNode? node = array[idx];
             if (array[idx + 1] != null)
                 ShiftRight(array, idx + 1, maxOffset);
-            if (node.Parent.index > 0 && node.index - maxOffset + 1 > node.Parent.index)
+            if (node!.Parent!.index > 0 && node.index - maxOffset + 1 > node.Parent.index)
                 ShiftRight(array, node.Parent.index, maxOffset);
             if (node != array[idx])
                 return; // already done indirectly.

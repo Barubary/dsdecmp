@@ -9,7 +9,7 @@
     <Copyright>Portions Copyright ©2009-2011 barubary
 Portions Copyright ©2020 riina</Copyright>
     <PackageProjectUrl>https://github.com/riina/dsdecmp</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/teamRokuro/Fp</RepositoryUrl>
+    <RepositoryUrl>https://github.com/riina/dsdecmp</RepositoryUrl>
     <Company>riina</Company>
     <AssemblyVersion>1.0.0</AssemblyVersion>
     <PackOnBuild>true</PackOnBuild>

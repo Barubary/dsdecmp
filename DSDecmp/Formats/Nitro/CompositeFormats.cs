@@ -9,7 +9,9 @@
         /// Creates a new instance of the format composed of all native GBA compression formats.
         /// </summary>
         public CompositeGBAFormat()
-            : base(new Huffman4(), new Huffman8(), new LZ10()) { }
+            : base(new Huffman4(), new Huffman8(), new LZ10())
+        {
+        }
 
         /// <summary>
         /// Gets a short string identifying this compression format.
@@ -53,7 +55,9 @@
         /// Creates a new instance of the format composed of all native NDS compression formats.
         /// </summary>
         public CompositeNDSFormat()
-            : base(new Huffman4(), new Huffman8(), new LZ10(), new LZ11()) { }
+            : base(new Huffman4(), new Huffman8(), new LZ10(), new LZ11())
+        {
+        }
 
         /// <summary>
         /// Gets a short string identifying this compression format.

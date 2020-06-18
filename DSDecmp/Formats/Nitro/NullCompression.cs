@@ -47,7 +47,9 @@ namespace DSDecmp.Formats.Nitro
         /// Creates a new instance of the NULL-compression format.
         /// </summary>
         public NullCompression()
-            : base(0) { }
+            : base(0)
+        {
+        }
 
         /// <summary>
         /// Checks if the given stream is (or could be) 'compressed' using the NULL compression format.
@@ -71,6 +73,7 @@ namespace DSDecmp.Formats.Nitro
                     outSize = (int)IOUtils.ToNDSu32(sizeBytes, 0);
                     headerSize = 8;
                 }
+
                 return outSize == inLength - headerSize;
             }
             finally
@@ -89,7 +92,7 @@ namespace DSDecmp.Formats.Nitro
             byte type = (byte)instream.ReadByte();
             if (type != magicByte)
                 throw new InvalidDataException("The provided stream is not a valid Null "
-                            + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
+                                               + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);

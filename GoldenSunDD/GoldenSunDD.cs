@@ -8,7 +8,6 @@ namespace GoldenSunDD
 {
     public class GoldenSunDD : CompressionFormat
     {
-
         public override string ShortFormatString
         {
             get { return "GSDD"; }
@@ -61,9 +60,11 @@ namespace GoldenSunDD
         }
 
         #region Decompression method
+
         public override long Decompress(Stream instream, long inLength, Stream outstream)
         {
             #region format specification
+
             // no NDSTEK-like specification for this one; I seem to not be able to get those right.
             /*
              * byte tag; // 0x40
@@ -84,6 +85,7 @@ namespace GoldenSunDD
              *                  -> Length = B, Disp = CDA
              *              Copy <Length> bytes from Dest-<Disp> to Dest (with <Dest> similar to the NDSTEK specs)
              */
+
             #endregion
 
             long readBytes = 0;
@@ -91,7 +93,7 @@ namespace GoldenSunDD
             byte type = (byte)instream.ReadByte();
             if (type != 0x40)
                 throw new InvalidDataException("The provided stream is not a valid 'LZ-0x40' "
-                            + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
+                                               + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);
@@ -116,14 +118,17 @@ namespace GoldenSunDD
             while (currentOutSize < decompressedSize)
             {
                 // (throws when requested new flags byte is not available)
+
                 #region Update the mask. If all flag bits have been read, get a new set.
+
                 // the current mask is the mask used in the previous run. So if it masks the
                 // last flag bit, get a new flags byte.
                 if (currentBlock == 8)
                 {
                     if (readBytes >= inLength)
                         throw new NotEnoughDataException(currentOutSize, decompressedSize);
-                    int flags = instream.ReadByte(); readBytes++;
+                    int flags = instream.ReadByte();
+                    readBytes++;
                     if (flags < 0)
                         throw new StreamTooShortException();
 
@@ -144,12 +149,14 @@ namespace GoldenSunDD
                 {
                     currentBlock++;
                 }
+
                 #endregion
 
                 // bit = 1 <=> compressed.
                 if (expandedFlags[currentBlock])
                 {
                     // (throws when < 2, 3 or 4 bytes are available)
+
                     #region Get length and displacement('disp') values from next 2, 3 or 4 bytes
 
                     // there are < 2 bytes available when the end is at most 1 byte away
@@ -158,12 +165,17 @@ namespace GoldenSunDD
                         // make sure the stream is at the end
                         if (readBytes < inLength)
                         {
-                            instream.ReadByte(); readBytes++;
+                            instream.ReadByte();
+                            readBytes++;
                         }
+
                         throw new NotEnoughDataException(currentOutSize, decompressedSize);
                     }
-                    int byte1 = instream.ReadByte(); readBytes++;
-                    int byte2 = instream.ReadByte(); readBytes++;
+
+                    int byte1 = instream.ReadByte();
+                    readBytes++;
+                    int byte2 = instream.ReadByte();
+                    readBytes++;
                     if (byte2 < 0)
                         throw new StreamTooShortException();
 
@@ -171,38 +183,43 @@ namespace GoldenSunDD
                     disp = (byte1 >> 4) + (byte2 << 4);
                     if (disp > currentOutSize)
                         throw new InvalidDataException("Cannot go back more than already written. "
-                                + "DISP = 0x" + disp.ToString("X") + ", #written bytes = 0x" + currentOutSize.ToString("X")
-                                + " at 0x" + (instream.Position - 2).ToString("X"));
+                                                       + "DISP = 0x" + disp.ToString("X") + ", #written bytes = 0x" +
+                                                       currentOutSize.ToString("X")
+                                                       + " at 0x" + (instream.Position - 2).ToString("X"));
 
                     switch (byte1 & 0x0F)
                     {
                         case 0:
-                            {
-                                if (readBytes >= inLength)
-                                    throw new NotEnoughDataException(currentOutSize, decompressedSize);
-                                int byte3 = instream.ReadByte(); readBytes++;
-                                if (byte3 < 0)
-                                    throw new StreamTooShortException();
-                                length = byte3 + 0x10;
-                                break;
-                            }
+                        {
+                            if (readBytes >= inLength)
+                                throw new NotEnoughDataException(currentOutSize, decompressedSize);
+                            int byte3 = instream.ReadByte();
+                            readBytes++;
+                            if (byte3 < 0)
+                                throw new StreamTooShortException();
+                            length = byte3 + 0x10;
+                            break;
+                        }
                         case 1:
-                            {
-                                if (readBytes + 1 >= inLength)
-                                    throw new NotEnoughDataException(currentOutSize, decompressedSize);
-                                int byte3 = instream.ReadByte(); readBytes++;
-                                int byte4 = instream.ReadByte(); readBytes++;
-                                if (byte4 < 0)
-                                    throw new StreamTooShortException();
-                                length = ((byte3 << 8) + byte4) + 0x110;
-                                break;
-                            }
+                        {
+                            if (readBytes + 1 >= inLength)
+                                throw new NotEnoughDataException(currentOutSize, decompressedSize);
+                            int byte3 = instream.ReadByte();
+                            readBytes++;
+                            int byte4 = instream.ReadByte();
+                            readBytes++;
+                            if (byte4 < 0)
+                                throw new StreamTooShortException();
+                            length = ((byte3 << 8) + byte4) + 0x110;
+                            break;
+                        }
                         default:
-                            {
-                                length = byte1 & 0x0F;
-                                break;
-                            }
+                        {
+                            length = byte1 & 0x0F;
+                            break;
+                        }
                     }
+
                     #endregion
 
                     int bufIdx = bufferOffset + bufferLength - disp;
@@ -214,13 +231,15 @@ namespace GoldenSunDD
                         buffer[bufferOffset] = next;
                         bufferOffset = (bufferOffset + 1) % bufferLength;
                     }
+
                     currentOutSize += length;
                 }
                 else
                 {
                     if (readBytes >= inLength)
                         throw new NotEnoughDataException(currentOutSize, decompressedSize);
-                    int next = instream.ReadByte(); readBytes++;
+                    int next = instream.ReadByte();
+                    readBytes++;
                     if (next < 0)
                         throw new StreamTooShortException();
 
@@ -229,6 +248,7 @@ namespace GoldenSunDD
                     buffer[bufferOffset] = (byte)next;
                     bufferOffset = (bufferOffset + 1) % bufferLength;
                 }
+
                 outstream.Flush();
             }
 
@@ -241,6 +261,7 @@ namespace GoldenSunDD
 
             return decompressedSize;
         }
+
         #endregion
 
         public override int Compress(Stream instream, long inLength, Stream outstream)

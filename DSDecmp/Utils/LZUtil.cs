@@ -17,7 +17,8 @@
         /// <param name="disp">The offset of the start of the longest block to refer to.</param>
         /// <param name="minDisp">The minimum allowed value for 'disp'.</param>
         /// <returns>The length of the longest sequence of bytes that can be copied from the already decompressed data.</returns>
-        public static unsafe int GetOccurrenceLength(byte* newPtr, int newLength, byte* oldPtr, int oldLength, out int disp, int minDisp = 1)
+        public static unsafe int GetOccurrenceLength(byte* newPtr, int newLength, byte* oldPtr, int oldLength,
+            out int disp, int minDisp = 1)
         {
             disp = 0;
             if (newLength == 0)
@@ -52,6 +53,7 @@
                         break;
                 }
             }
+
             return maxLength;
         }
     }

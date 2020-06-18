@@ -19,7 +19,10 @@ namespace DSDecmp.Utils
         /// <summary>
         /// Gets the number of items in this queue.
         /// </summary>
-        public int Count { get { return itemCount; } }
+        public int Count
+        {
+            get { return itemCount; }
+        }
 
         /// <summary>
         /// Creates a new, empty reverse priority queue.
@@ -58,6 +61,7 @@ namespace DSDecmp.Utils
                 priority = kvp.Key;
                 return kvp.Value.First.Value;
             }
+
             throw new IndexOutOfRangeException();
         }
 
@@ -87,6 +91,7 @@ namespace DSDecmp.Utils
             {
                 items.Remove(priority);
             }
+
             itemCount--;
             return returnValue;
         }

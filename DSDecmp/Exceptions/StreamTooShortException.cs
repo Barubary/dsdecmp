@@ -13,7 +13,8 @@ namespace DSDecmp.Exceptions
         /// </summary>
         public StreamTooShortException()
             : base("The end of the stream was reached "
-                 + "before the given amout of data was read.")
-        { }
+                   + "before the given amout of data was read.")
+        {
+        }
     }
 }

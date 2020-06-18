@@ -33,11 +33,8 @@ namespace DSDecmp.Exceptions
         /// <param name="currentOutSize">The actual number of written bytes.</param>
         /// <param name="totalOutSize">The desired number of written bytes.</param>
         public NotEnoughDataException(long currentOutSize, long totalOutSize)
-            : base("Not enough data availble; 0x" + currentOutSize.ToString("X")
-                                                  + " of " + (totalOutSize < 0
-                                                      ? "???"
-                                                      : ("0x" + totalOutSize.ToString("X")))
-                                                  + " bytes written.")
+            : base(
+                $"Not enough data availble; 0x{currentOutSize:X} of {(totalOutSize < 0 ? "???" : ("0x" + totalOutSize.ToString("X")))} bytes written.")
         {
             this.currentOutSize = currentOutSize;
             this.totalOutSize = totalOutSize;

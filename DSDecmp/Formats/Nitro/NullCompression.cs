@@ -14,34 +14,22 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// Gets a short string identifying this compression format.
         /// </summary>
-        public override string ShortFormatString
-        {
-            get { return "NULL"; }
-        }
+        public override string ShortFormatString => "NULL";
 
         /// <summary>
         /// Gets a short description of this compression format (used in the program usage).
         /// </summary>
-        public override string Description
-        {
-            get { return "NULL-'compression' format. Prefixes file with 0x00 and filesize."; }
-        }
+        public override string Description => "NULL-'compression' format. Prefixes file with 0x00 and filesize.";
 
         /// <summary>
         /// Gets if this format supports compressing a file.
         /// </summary>
-        public override bool SupportsCompression
-        {
-            get { return true; }
-        }
+        public override bool SupportsCompression => true;
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.
         /// </summary>
-        public override string CompressionFlag
-        {
-            get { return "null"; }
-        }
+        public override string CompressionFlag => "null";
 
         /// <summary>
         /// Creates a new instance of the NULL-compression format.
@@ -91,8 +79,8 @@ namespace DSDecmp.Formats.Nitro
 
             byte type = (byte)instream.ReadByte();
             if (type != magicByte)
-                throw new InvalidDataException("The provided stream is not a valid Null "
-                                               + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
+                throw new InvalidDataException(
+                    $"The provided stream is not a valid Null compressed stream (invalid type 0x{type:X})");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);

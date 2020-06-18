@@ -16,34 +16,22 @@ namespace DSDecmp.Formats
         /// <summary>
         /// Gets a short string identifying this compression format.
         /// </summary>
-        public override string ShortFormatString
-        {
-            get { return "LZ-Ovl"; }
-        }
+        public override string ShortFormatString => "LZ-Ovl";
 
         /// <summary>
         /// Gets a short description of this compression format (used in the program usage).
         /// </summary>
-        public override string Description
-        {
-            get { return "Reverse LZ format, mainly used in 'overlay' files of NDS games."; }
-        }
+        public override string Description => "Reverse LZ format, mainly used in 'overlay' files of NDS games.";
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.
         /// </summary>
-        public override string CompressionFlag
-        {
-            get { return "lzovl"; }
-        }
+        public override string CompressionFlag => "lzovl";
 
         /// <summary>
         /// Gets if this format supports compressing a file.
         /// </summary>
-        public override bool SupportsCompression
-        {
-            get { return true; }
-        }
+        public override bool SupportsCompression => true;
 
         private static bool lookAhead = false;
 
@@ -328,11 +316,8 @@ namespace DSDecmp.Formats
                         if (disp > currentOutSize)
                         {
                             if (currentOutSize < 2)
-                                throw new InvalidDataException("Cannot go back more than already written; "
-                                                               + "attempt to go back 0x" + disp.ToString("X") +
-                                                               " when only 0x"
-                                                               + currentOutSize.ToString("X") +
-                                                               " bytes have been written.");
+                                throw new InvalidDataException(
+                                    $"Cannot go back more than already written; attempt to go back 0x{disp:X} when only 0x{currentOutSize:X} bytes have been written.");
                             // HACK. this seems to produce valid files, but isn't the most elegant solution.
                             // although this _could_ be the actual way to use a disp of 2 in this format,
                             // as otherwise the minimum would be 3 (and 0 is undefined, and 1 is less useful).

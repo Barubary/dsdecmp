@@ -91,7 +91,7 @@ namespace DSDecmp.Formats
                 }
             }
 
-            throw new InvalidDataException("Input cannot be decompressed using the " + ShortFormatString + " formats.");
+            throw new InvalidDataException($"Input cannot be decompressed using the {ShortFormatString} formats.");
         }
 
         #endregion

@@ -11,25 +11,13 @@ namespace LuminousArc
     /// </summary>
     public class LuminousArc : CompressionFormat
     {
-        public override string ShortFormatString
-        {
-            get { return "LZE/Le"; }
-        }
+        public override string ShortFormatString => "LZE/Le";
 
-        public override string Description
-        {
-            get { return "A variant of an LZ/RLE scheme found in Luminous Arc games."; }
-        }
+        public override string Description => "A variant of an LZ/RLE scheme found in Luminous Arc games.";
 
-        public override string CompressionFlag
-        {
-            get { return "Le"; }
-        }
+        public override string CompressionFlag => "Le";
 
-        public override bool SupportsCompression
-        {
-            get { return true; }
-        }
+        public override bool SupportsCompression => true;
 
         private static bool lookAhead = false;
 
@@ -121,9 +109,8 @@ namespace LuminousArc
             byte[] magic = new byte[2];
             instream.Read(magic, 0, 2);
             if (magic[0] != 'L' || magic[1] != 'e')
-                throw new InvalidDataException("The provided stream is not a valid LZE (Le) "
-                                               + "compressed stream (invalid magic '" + (char)magic[0] +
-                                               (char)magic[1] + "')");
+                throw new InvalidDataException(
+                    $"The provided stream is not a valid LZE (Le) compressed stream (invalid magic '{(char)magic[0]}{(char)magic[1]}')");
             byte[] sizeBytes = new byte[4];
             instream.Read(sizeBytes, 0, 4);
             uint decompressedSize = IOUtils.ToNDSu32(sizeBytes, 0);
@@ -201,10 +188,8 @@ namespace LuminousArc
                         disp += 5;
 
                         if (disp > currentOutSize)
-                            throw new InvalidDataException("Cannot go back more than already written. "
-                                                           + "DISP = 0x" + disp.ToString("X") +
-                                                           ", #written bytes = 0x" + currentOutSize.ToString("X")
-                                                           + " at 0x" + (instream.Position - 2).ToString("X"));
+                            throw new InvalidDataException(
+                                $"Cannot go back more than already written. DISP = 0x{disp:X}, #written bytes = 0x{currentOutSize:X} at 0x{(instream.Position - 2):X}");
 
                         #endregion
 
@@ -252,10 +237,8 @@ namespace LuminousArc
                         disp += 1;
 
                         if (disp > currentOutSize)
-                            throw new InvalidDataException("Cannot go back more than already written. "
-                                                           + "DISP = 0x" + disp.ToString("X") +
-                                                           ", #written bytes = 0x" + currentOutSize.ToString("X")
-                                                           + " at 0x" + (instream.Position - 1).ToString("X"));
+                            throw new InvalidDataException(
+                                $"Cannot go back more than already written. DISP = 0x{disp:X}, #written bytes = 0x{currentOutSize:X} at 0x{(instream.Position - 1):X}");
 
                         #endregion
 

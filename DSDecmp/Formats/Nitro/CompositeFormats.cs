@@ -16,34 +16,22 @@
         /// <summary>
         /// Gets a short string identifying this compression format.
         /// </summary>
-        public override string ShortFormatString
-        {
-            get { return "GBA"; }
-        }
+        public override string ShortFormatString => "GBA";
 
         /// <summary>
         /// Gets a short description of this compression format (used in the program usage).
         /// </summary>
-        public override string Description
-        {
-            get { return "All formats natively supported by the GBA."; }
-        }
+        public override string Description => "All formats natively supported by the GBA.";
 
         /// <summary>
         /// Gets if this format supports compressing a file.
         /// </summary>
-        public override bool SupportsCompression
-        {
-            get { return true; }
-        }
+        public override bool SupportsCompression => true;
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.
         /// </summary>
-        public override string CompressionFlag
-        {
-            get { return "gba*"; }
-        }
+        public override string CompressionFlag => "gba*";
     }
 
     /// <summary>
@@ -62,33 +50,21 @@
         /// <summary>
         /// Gets a short string identifying this compression format.
         /// </summary>
-        public override string ShortFormatString
-        {
-            get { return "NDS"; }
-        }
+        public override string ShortFormatString => "NDS";
 
         /// <summary>
         /// Gets a short description of this compression format (used in the program usage).
         /// </summary>
-        public override string Description
-        {
-            get { return "All formats natively supported by the NDS."; }
-        }
+        public override string Description => "All formats natively supported by the NDS.";
 
         /// <summary>
         /// Gets if this format supports compressing a file.
         /// </summary>
-        public override bool SupportsCompression
-        {
-            get { return true; }
-        }
+        public override bool SupportsCompression => true;
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.
         /// </summary>
-        public override string CompressionFlag
-        {
-            get { return "nds*"; }
-        }
+        public override string CompressionFlag => "nds*";
     }
 }

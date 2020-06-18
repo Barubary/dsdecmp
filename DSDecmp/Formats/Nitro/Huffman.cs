@@ -40,10 +40,7 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// Gets if this format supports compression. Always returns true.
         /// </summary>
-        public override bool SupportsCompression
-        {
-            get { return true; }
-        }
+        public override bool SupportsCompression => true;
 
 
         #region Internal Constructor(BlockSize)
@@ -108,9 +105,8 @@ namespace DSDecmp.Formats.Nitro
 
             byte type = (byte)instream.ReadByte();
             if (type != (byte)CompressBlockSize)
-                throw new InvalidDataException("The provided stream is not a valid Huffman "
-                                               + "compressed stream (invalid type 0x" + type.ToString("X") +
-                                               "); unknown block size.");
+                throw new InvalidDataException(
+                    $"The provided stream is not a valid Huffman compressed stream (invalid type 0x{type:X}); unknown block size.");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);
@@ -223,7 +219,7 @@ namespace DSDecmp.Formats.Nitro
                         break;
                     }
                     default:
-                        throw new Exception("Unknown block size " + CompressBlockSize.ToString());
+                        throw new Exception($"Unknown block size {CompressBlockSize}");
                 }
 
                 #endregion
@@ -320,10 +316,7 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// Returns true if this node represents data.
             /// </summary>
-            public bool IsData
-            {
-                get { return isData; }
-            }
+            public bool IsData => isData;
 
             #endregion
 
@@ -337,10 +330,7 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// The child of this node at side 0
             /// </summary>
-            public HuffTreeNode Child0
-            {
-                get { return child0; }
-            }
+            public HuffTreeNode Child0 => child0;
 
             /// <summary>
             /// The child of this node at side 1
@@ -350,10 +340,7 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// The child of this node at side 1
             /// </summary>
-            public HuffTreeNode Child1
-            {
-                get { return child1; }
-            }
+            public HuffTreeNode Child1 => child1;
 
             /// <summary>
             /// The parent node of this node.
@@ -363,18 +350,12 @@ namespace DSDecmp.Formats.Nitro
             /// <summary>
             /// Determines if this is the Child0 of the parent node. Assumes there is a parent.
             /// </summary>
-            public bool IsChild0
-            {
-                get { return Parent.child0 == this; }
-            }
+            public bool IsChild0 => Parent.child0 == this;
 
             /// <summary>
             /// Determines if this is the Child1 of the parent node. Assumes there is a parent.
             /// </summary>
-            public bool IsChild1
-            {
-                get { return Parent.child1 == this; }
-            }
+            public bool IsChild1 => Parent.child1 == this;
 
             #endregion
 
@@ -545,26 +526,17 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// Gets a short string identifying this compression format.
         /// </summary>
-        public override string ShortFormatString
-        {
-            get { return "Huffman-4"; }
-        }
+        public override string ShortFormatString => "Huffman-4";
 
         /// <summary>
         /// Gets a short description of this compression format.
         /// </summary>
-        public override string Description
-        {
-            get { return "Huffman compression scheme using 4-bit datablocks."; }
-        }
+        public override string Description => "Huffman compression scheme using 4-bit datablocks.";
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.
         /// </summary>
-        public override string CompressionFlag
-        {
-            get { return "huff4"; }
-        }
+        public override string CompressionFlag => "huff4";
 
         /// <summary>
         /// Creates a new instance of the 4-bit Huffman compression format.
@@ -753,26 +725,17 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// Gets a short string identifying this compression format.
         /// </summary>
-        public override string ShortFormatString
-        {
-            get { return "Huffman-8"; }
-        }
+        public override string ShortFormatString => "Huffman-8";
 
         /// <summary>
         /// Gets a short description of this compression format.
         /// </summary>
-        public override string Description
-        {
-            get { return "Huffman compression scheme using 8-bit datablocks."; }
-        }
+        public override string Description => "Huffman compression scheme using 8-bit datablocks.";
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.
         /// </summary>
-        public override string CompressionFlag
-        {
-            get { return "huff8"; }
-        }
+        public override string CompressionFlag => "huff8";
 
         /// <summary>
         /// Creates a new instance of the 4-bit Huffman compression format.
@@ -1122,33 +1085,21 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// Gets a short string identifying this compression format.
         /// </summary>
-        public override string ShortFormatString
-        {
-            get { return "Huffman"; }
-        }
+        public override string ShortFormatString => "Huffman";
 
         /// <summary>
         /// Gets a short description of this compression format.
         /// </summary>
-        public override string Description
-        {
-            get { return "Either the Huffman-4 or Huffman-8 format."; }
-        }
+        public override string Description => "Either the Huffman-4 or Huffman-8 format.";
 
         /// <summary>
         /// Gets if this format supports compression. Always returns true.
         /// </summary>
-        public override bool SupportsCompression
-        {
-            get { return true; }
-        }
+        public override bool SupportsCompression => true;
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.
         /// </summary>
-        public override string CompressionFlag
-        {
-            get { return "huff"; }
-        }
+        public override string CompressionFlag => "huff";
     }
 }

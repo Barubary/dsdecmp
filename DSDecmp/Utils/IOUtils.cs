@@ -106,9 +106,7 @@ namespace DSDecmp.Utils
                     {
                         if (printFailures)
                             Console.WriteLine(
-                                dllType +
-                                " is a compression format, but does not have a parameterless constructor. Format cannot be loaded from " +
-                                fullPath + ".");
+                                $"{dllType} is a compression format, but does not have a parameterless constructor. Format cannot be loaded from {fullPath}.");
                     }
                 }
             }

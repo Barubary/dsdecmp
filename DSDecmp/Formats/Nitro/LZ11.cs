@@ -14,34 +14,22 @@ namespace DSDecmp.Formats.Nitro
         /// <summary>
         /// Gets a short string identifying this compression format.
         /// </summary>
-        public override string ShortFormatString
-        {
-            get { return "LZ-11"; }
-        }
+        public override string ShortFormatString => "LZ-11";
 
         /// <summary>
         /// Gets a short description of this compression format (used in the program usage).
         /// </summary>
-        public override string Description
-        {
-            get { return "Variant of the LZ-0x10 format to support longer repetitions."; }
-        }
+        public override string Description => "Variant of the LZ-0x10 format to support longer repetitions.";
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.
         /// </summary>
-        public override string CompressionFlag
-        {
-            get { return "lz11"; }
-        }
+        public override string CompressionFlag => "lz11";
 
         /// <summary>
         /// Gets if this format supports compressing a file.
         /// </summary>
-        public override bool SupportsCompression
-        {
-            get { return true; }
-        }
+        public override bool SupportsCompression => true;
 
         private static bool lookAhead = false;
 
@@ -129,8 +117,8 @@ namespace DSDecmp.Formats.Nitro
 
             byte type = (byte)instream.ReadByte();
             if (type != magicByte)
-                throw new InvalidDataException("The provided stream is not a valid LZ-0x11 "
-                                               + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
+                throw new InvalidDataException(
+                    $"The provided stream is not a valid LZ-0x11 compressed stream (invalid type 0x{type:X})");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);
@@ -266,12 +254,8 @@ namespace DSDecmp.Formats.Nitro
                     }
 
                     if (disp > currentOutSize)
-                        throw new InvalidDataException("Cannot go back more than already written. "
-                                                       + "DISP = " + disp + ", #written bytes = 0x" +
-                                                       currentOutSize.ToString("X")
-                                                       + " before 0x" + instream.Position.ToString("X") +
-                                                       " with indicator 0x"
-                                                       + (byte1 >> 4).ToString("X"));
+                        throw new InvalidDataException(
+                            $"Cannot go back more than already written. DISP = {disp}, #written bytes = 0x{currentOutSize:X} before 0x{instream.Position:X} with indicator 0x{(byte1 >> 4):X}");
 
                     #endregion
 

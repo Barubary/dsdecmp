@@ -8,25 +8,13 @@ namespace GoldenSunDD
 {
     public class GoldenSunDD : CompressionFormat
     {
-        public override string ShortFormatString
-        {
-            get { return "GSDD"; }
-        }
+        public override string ShortFormatString => "GSDD";
 
-        public override string Description
-        {
-            get { return "A variant of the LZ-0x11 scheme found in Golden Sun: Dark Dawn."; }
-        }
+        public override string Description => "A variant of the LZ-0x11 scheme found in Golden Sun: Dark Dawn.";
 
-        public override string CompressionFlag
-        {
-            get { return "gsdd"; }
-        }
+        public override string CompressionFlag => "gsdd";
 
-        public override bool SupportsCompression
-        {
-            get { return false; }
-        }
+        public override bool SupportsCompression => false;
 
         public override bool Supports(Stream stream, long inLength)
         {
@@ -70,7 +58,7 @@ namespace GoldenSunDD
              * byte tag; // 0x40
              * byte[3] decompressedSize;
              * the rest is the data;
-             * 
+             *
              * for each chunk:
              *      - first byte determines which blocks are compressed
              *           multiply by -1 to get the proper flags (1->compressed, 0->raw)
@@ -92,8 +80,8 @@ namespace GoldenSunDD
 
             byte type = (byte)instream.ReadByte();
             if (type != 0x40)
-                throw new InvalidDataException("The provided stream is not a valid 'LZ-0x40' "
-                                               + "compressed stream (invalid type 0x" + type.ToString("X") + ")");
+                throw new InvalidDataException(
+                    $"The provided stream is not a valid 'LZ-0x40' compressed stream (invalid type 0x{type:X})");
             byte[] sizeBytes = new byte[3];
             instream.Read(sizeBytes, 0, 3);
             int decompressedSize = IOUtils.ToNDSu24(sizeBytes, 0);
@@ -182,10 +170,8 @@ namespace GoldenSunDD
                     int disp, length;
                     disp = (byte1 >> 4) + (byte2 << 4);
                     if (disp > currentOutSize)
-                        throw new InvalidDataException("Cannot go back more than already written. "
-                                                       + "DISP = 0x" + disp.ToString("X") + ", #written bytes = 0x" +
-                                                       currentOutSize.ToString("X")
-                                                       + " at 0x" + (instream.Position - 2).ToString("X"));
+                        throw new InvalidDataException(
+                            $"Cannot go back more than already written. DISP = 0x{disp:X}, #written bytes = 0x{currentOutSize:X} at 0x{(instream.Position - 2):X}");
 
                     switch (byte1 & 0x0F)
                     {

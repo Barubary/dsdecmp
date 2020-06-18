@@ -121,10 +121,7 @@ namespace DSDecmp.Formats
         /// <summary>
         /// Gets if this format supports decompressing a file.
         /// </summary>
-        public virtual bool SupportsDecompression
-        {
-            get { return true; }
-        }
+        public virtual bool SupportsDecompression => true;
 
         /// <summary>
         /// Gets the value that must be given on the command line in order to compress using this format.

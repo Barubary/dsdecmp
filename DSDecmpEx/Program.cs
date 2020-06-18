@@ -168,7 +168,7 @@ namespace DSDecmpEx
             Console.WriteLine("<format> -> description");
             foreach (CompressionFormat fmt in GetAllFormats(true))
             {
-                Console.WriteLine(fmt.CompressionFlag.PadRight(7, ' ') + "-> " + fmt.Description);
+                Console.WriteLine($"{fmt.CompressionFlag.PadRight(7, ' ')}-> {fmt.Description}");
             }
 
             Console.WriteLine("-------------------------------------------------------------------------------");
@@ -226,7 +226,7 @@ namespace DSDecmpEx
                                 byte[] magic = new byte[4];
                                 outStr.Read(magic, 0, 4);
                                 outStr.Position = 0;
-                                outFileName += "." + GuessExtension(magic, Path.GetExtension(outputFile).Substring(1));
+                                outFileName += $".{GuessExtension(magic, Path.GetExtension(outputFile).Substring(1))}";
                                 outputFile = outputFile.Replace(Path.GetFileName(outputFile), outFileName);
                             }
 
@@ -236,8 +236,7 @@ namespace DSDecmpEx
                             }
 
                             decompressed = true;
-                            Console.WriteLine(format.ShortFormatString + "-decompressed " + input + " to " +
-                                              outputFile);
+                            Console.WriteLine($"{format.ShortFormatString}-decompressed {input} to {outputFile}");
                             break;
                         }
                         catch (TooMuchInputException tmie)
@@ -251,7 +250,7 @@ namespace DSDecmpEx
                                 byte[] magic = new byte[4];
                                 outStr.Read(magic, 0, 4);
                                 outStr.Position = 0;
-                                outFileName += "." + GuessExtension(magic, Path.GetExtension(outputFile).Substring(1));
+                                outFileName += $".{GuessExtension(magic, Path.GetExtension(outputFile).Substring(1))}";
                                 outputFile = outputFile.Replace(Path.GetFileName(outputFile), outFileName);
                             }
 
@@ -261,8 +260,7 @@ namespace DSDecmpEx
                             }
 
                             decompressed = true;
-                            Console.WriteLine(format.ShortFormatString + "-decompressed " + input + " to " +
-                                              outputFile);
+                            Console.WriteLine($"{format.ShortFormatString}-decompressed {input} to {outputFile}");
                             break;
                         }
                         catch (Exception)
@@ -282,19 +280,19 @@ namespace DSDecmpEx
                             Copy(input, outputFile);
                         }
                         else
-                            Console.WriteLine("No suitable decompressor found for " + input + ".");
+                            Console.WriteLine($"No suitable decompressor found for {input}.");
 
                         #endregion
                     }
                 }
                 catch (FileNotFoundException)
                 {
-                    Console.WriteLine("The file " + input + " does not exist.");
+                    Console.WriteLine($"The file {input} does not exist.");
                     continue;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Could not load file " + input + ";");
+                    Console.WriteLine($"Could not load file {input};");
                     Console.WriteLine(ex.Message);
 #if DEBUG
                     Console.WriteLine(ex.StackTrace);
@@ -316,8 +314,7 @@ namespace DSDecmpEx
         {
             if (!format.SupportsCompression)
             {
-                Console.WriteLine("Cannot compress using " + format.ShortFormatString +
-                                  "; compression is not supported.");
+                Console.WriteLine($"Cannot compress using {format.ShortFormatString}; compression is not supported.");
                 return;
             }
 
@@ -362,7 +359,7 @@ namespace DSDecmpEx
                                     Console.Write((format as CompositeFormat).LastUsedCompressFormatString);
                                 else
                                     Console.Write(format.ShortFormatString);
-                                Console.WriteLine("-compressed " + input + " to " + outputFile);
+                                Console.WriteLine($"-compressed {input} to {outputFile}");
                             }
                         }
                         catch (Exception ex)
@@ -375,7 +372,7 @@ namespace DSDecmpEx
                             }
                             else
                             {
-                                Console.WriteLine("Could not " + format.ShortFormatString + "-compress " + input + ";");
+                                Console.WriteLine($"Could not {format.ShortFormatString}-compress {input};");
                                 Console.WriteLine(ex.Message);
 #if DEBUG
                                 Console.WriteLine(ex.StackTrace);
@@ -390,12 +387,12 @@ namespace DSDecmpEx
                 }
                 catch (FileNotFoundException)
                 {
-                    Console.WriteLine("The file " + input + " does not exist.");
+                    Console.WriteLine($"The file {input} does not exist.");
                     continue;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine("Could not load file " + input + ";");
+                    Console.WriteLine($"Could not load file {input};");
                     Console.WriteLine(ex.Message);
 #if DEBUG
                     Console.WriteLine(ex.StackTrace);
@@ -449,9 +446,9 @@ namespace DSDecmpEx
                     {
                         inputFiles = Directory.GetFiles(ioArgs[0]);
                         if (compress)
-                            outputDir = Path.GetFullPath(ioArgs[0]) + "_cmp";
+                            outputDir = $"{Path.GetFullPath(ioArgs[0])}_cmp";
                         else
-                            outputDir = Path.GetFullPath(ioArgs[0]) + "_dec";
+                            outputDir = $"{Path.GetFullPath(ioArgs[0])}_dec";
                         if (!Directory.Exists(outputDir))
                             Directory.CreateDirectory(outputDir);
                         break;
@@ -464,7 +461,7 @@ namespace DSDecmpEx
                     }
                     else
                     {
-                        Console.WriteLine("The file " + ioArgs[0] + " does not exist.");
+                        Console.WriteLine($"The file {ioArgs[0]} does not exist.");
                         return false;
                     }
                 case 2:
@@ -494,7 +491,7 @@ namespace DSDecmpEx
                     }
                     else
                     {
-                        Console.WriteLine("The file " + ioArgs[0] + " does not exist.");
+                        Console.WriteLine($"The file {ioArgs[0]} does not exist.");
                         return false;
                     }
                 default:
@@ -559,7 +556,7 @@ namespace DSDecmpEx
             if (Path.GetFullPath(sourcefile) == Path.GetFullPath(destfile))
                 return;
             File.Copy(sourcefile, destfile);
-            Console.WriteLine("Copied " + sourcefile + " to " + destfile);
+            Console.WriteLine($"Copied {sourcefile} to {destfile}");
         }
 
         #region Format sequence getters
@@ -578,7 +575,7 @@ namespace DSDecmpEx
                     yield break;
                 }
 
-            Console.WriteLine("No such compression format: " + formatstring);
+            Console.WriteLine($"No such compression format: {formatstring}");
         }
 
         /// <summary>
@@ -627,8 +624,7 @@ namespace DSDecmpEx
             }
             else
             {
-                Console.WriteLine("Plugin folder " + pluginPath +
-                                  " is not present; only built-in formats are supported.");
+                Console.WriteLine($"Plugin folder {pluginPath} is not present; only built-in formats are supported.");
             }
         }
 

@@ -238,6 +238,8 @@ namespace DSDecmp.Formats
                 instream.Position -= 4;
                 instream.Read(buffer, 0, 3);
                 int compressedSize = buffer[0] | (buffer[1] << 8) | (buffer[2] << 16);
+                // this size value from the header includes the size of that header.
+                compressedSize -= headerSize;
 
                 // the compressed size sometimes is the file size.
                 if (compressedSize + headerSize >= inLength)
